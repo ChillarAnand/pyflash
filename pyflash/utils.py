@@ -1,13 +1,19 @@
+import datetime
 import glob
 import os
 import smtplib
 import subprocess
 import sys
+import time
+import random
+
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 from os.path import basename
+
+import requests
 
 import importmagic
 from importmagic import SymbolIndex
@@ -80,7 +86,9 @@ def send_mail(m_from, m_to, subject, text,
 def fix_imports(index, source):
     scope = importmagic.Scope.from_source(source)
     unresolved, unreferenced = scope.find_unresolved_and_unreferenced_symbols()
-    source = importmagic.update_imports(source, index, unresolved, unreferenced)
+    source = importmagic.update_imports(
+        source, index, unresolved, unreferenced
+    )
     return source
 
 
@@ -100,5 +108,79 @@ def imp_mgc_fixup(project_root):
     for f in files:
         with open(f, 'w+') as fh:
             py_source = fh.read()
+            print(py_source)
             py_source = fix_imports(index, py_source)
+            print(py_source)
             fh.write(py_source)
+
+
+def imd_data(from_date, to_date, state):
+    """
+    Download data from IMD for given period.
+    """
+    if not from_date:
+        now = datetime.datetime.now()
+        from_date = now.strftime('%d%2f%m%2f%Y')
+        delta = datetime.timedelta(days=31)
+        month = now + delta
+        to_date = month.strftime('%d%2f%m%2f%Y')
+
+    data_dir = 'data'
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    base_url = 'http://imdaws.com/'
+    endpoint = 'userdetails.aspx?Dtype={}&State={}&Dist=0&Loc=0&FromDate={}&ToDate={}&Time='
+
+    username = os.environ.get('IMD_USERNAME')
+    password = os.environ.get('IMD_PASSWORD')
+    if not (username and password):
+        print('Please set IMD_USERNAME, IMD_PASSWORD env variables.')
+        sys.exit()
+
+    data = {
+        'txtUserName': username,
+        'txtPassword': password,
+        'btnSave': 'Download',
+        '__EVENTTARGET': '',
+        '__EVENTARGUMENT': '',
+        '__VIEWSTATE': '/wEPDwUKMTY1MTEwNzczMw9kFgICBA9kFgICAQ8PFgIeBFRleHQFBjg0NDk1M2RkZC6DYVzVd15uvyThvNG6/M2DvFM9',
+        '__EVENTVALIDATION': '/wEWBQKWseTfCwKl1bKzCQK1qbSRCwKct7iSDAK+rvNOIfrKsC5vyGsh5LvcfjWT2CXjvbA=',
+    }
+
+    d_types = ['AWS', 'ARG']
+    d_types = ['AWS']
+    if state:
+        states = int(state)
+    else:
+        states = range(1, 29)
+
+    for d_type in d_types:
+        for s in states:
+            ep = endpoint.format(d_type, s, from_date, to_date)
+            url = base_url + ep
+            print(url)
+
+            resp = requests.post(url, data=data)
+            if not resp.status_code == 200:
+                print('error', url)
+                continue
+
+            data = resp.content.decode('utf-8')
+
+            try:
+                # capture url
+                d_url = data.split("DownloadData('")[1].split("'")[0]
+            except:
+                # import ipdb; ipdb.set_trace()
+                # print(data)
+                print('error', url)
+                continue
+
+            r = requests.get(d_url)
+            name = '_'.join((d_type, str(state))) + '.csv'
+            file_name = os.path.join(data_dir, name)
+            with open(file_name, 'wb') as fh:
+                fh.write(r.content)
+            # print('ssssssssss')
+            # time.sleep(random.randint(15, 20))
