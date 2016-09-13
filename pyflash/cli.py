@@ -25,7 +25,7 @@ def cli():
 @cli.command()
 @click.option('--source', '-s', default='/home/chillaranand/Downloads/',
               help='Enter source location.')
-@click.option('--destination', '-d', default='/home/chillaranand/Documents/',
+@click.option('--destination', '-d', default='/home/chillaranand/Dropbox/books/kindle/',
               help='Enter source location.')
 @click.option('--kindle', '-k', default='anand21nanda@kindle.com',
               help='Your kindle mail.')
