@@ -1,10 +1,8 @@
 import os
-import shutil
 
 import click
 
-from .utils import (convert_to_mobi, get_files_with_pattern, imp_mgc_fixup,
-                    imd_data)
+from .utils import to_kindle, imp_mgc_fixup, imd_data
 
 
 @click.command()
@@ -31,24 +29,8 @@ def cli():
 @click.option('--kindle', '-k', default='anand21nanda@kindle.com',
               help='Your kindle mail.')
 def send_to_kindle(source, destination, kindle):
-    click.echo('Sending books to your kindle device.')
-
-    patterns = ['*.epub']
-    for pattern in patterns:
-        files = get_files_with_pattern(pattern, source)
-        for filename in files:
-            convert_to_mobi(filename)
-            shutil.move(filename, "/tmp/")
-
-    patterns = ['*.azw3', '*.mobi']
-    for pattern in patterns:
-        files = get_files_with_pattern(pattern, source)
-        for filename in files:
-            # send_to_kindle_mail(filename, kindle)
-            try:
-                shutil.move(filename, destination)
-            except shutil.Error as e:
-                print(e)
+    click.echo('Looking for books...')
+    to_kindle(source, destination)
 
 
 @cli.command()

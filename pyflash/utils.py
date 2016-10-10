@@ -1,25 +1,43 @@
 import datetime
 import glob
 import os
+import shutil
 import smtplib
 import subprocess
 import sys
-import time
-import random
-
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import COMMASPACE, formatdate
 from os.path import basename
 
 import requests
 
 import importmagic
+from email.utils import COMMASPACE, formatdate
 from importmagic import SymbolIndex
 
 
 FNULL = open(os.devnull, 'w')
+
+
+def to_kindle(source, destination):
+    patterns = ['*.epub']
+    for pattern in patterns:
+        files = get_files_with_pattern(pattern, source)
+        for filename in files:
+            convert_to_mobi(filename)
+            shutil.move(filename, "/tmp/")
+
+    patterns = ['*.azw3', '*.mobi', '*.pdf']
+    for pattern in patterns:
+        files = get_files_with_pattern(pattern, source)
+        for filename in files:
+            # send_to_kindle_mail(filename, kindle)
+            print('Sending {}'.format(filename))
+            try:
+                shutil.move(filename, destination)
+            except shutil.Error as e:
+                print(e)
 
 
 def get_files_with_pattern(pattern, root):
