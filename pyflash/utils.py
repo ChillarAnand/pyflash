@@ -150,10 +150,8 @@ def imd_data(from_date, to_date, state):
 
     d_types = ['AWS', 'ARG']
     d_types = ['AWS']
-    if state:
-        states = int(state)
-    else:
-        states = range(1, 29)
+
+    states = range(1, 29)
 
     for d_type in d_types:
         for s in states:
