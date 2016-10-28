@@ -7,7 +7,7 @@ dependencies = ['click']
 
 setup(
     name='pyflash',
-    version='0.1.0',
+    version='0.1.1',
     url='https://github.com/chillaranand/pyflash',
     license='BSD',
     author='Chillar Anand',

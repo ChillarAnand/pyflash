@@ -1,16 +1,13 @@
 # pyflash
 
-My Tool does one thing, and one thing well.
+Get flash like super powers!
+
 
 
 # Installation
 
-If you don't use `pipsi`, you're missing out.
-Here are [installation instructions](https://github.com/mitsuhiko/pipsi#readme).
 
-Simply run:
-
-    $ pipsi install .
+    $ pip install pyflash
 
 
 # Usage
@@ -18,4 +15,3 @@ Simply run:
 To use it:
 
     $ flash --help
-
