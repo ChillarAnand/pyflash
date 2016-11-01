@@ -1,9 +1,10 @@
 import os
 import time
+import subprocess
 
 import click
 import requests
-
+from isign import isign
 from .utils import imd_data, imp_mgc_fixup, to_kindle
 
 
@@ -83,3 +84,13 @@ def dynamic(num, debug):
     print(url)
     response = requests.post(url, data=data, auth=(user_id, token))
     print(response.text)
+
+
+@cli.command()
+@click.option('--ipa', '-i', default=None)
+def ios_install(ipa):
+    ipa = os.path.abspath(ipa)
+    print('Resigning ipa: {}'.format(ipa))
+    isign.resign(ipa, output_path=ipa)
+    cmd = 'ideviceinstaller -i {}'.format(ipa)
+    subprocess.check_output(cmd.split())
