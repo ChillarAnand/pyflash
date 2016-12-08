@@ -9,6 +9,8 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os.path import basename
+import time
+import shlex
 
 import requests
 
@@ -18,6 +20,14 @@ from importmagic import SymbolIndex
 
 
 FNULL = open(os.devnull, 'w')
+
+
+def envar(var):
+    var = var.upper()
+    var = os.environ.get(var, None)
+    if not var:
+        print('{} not set in environment'.var.upper())
+    return var
 
 
 def to_kindle(source, destination):
@@ -132,6 +142,11 @@ def imp_mgc_fixup(project_root):
             fh.write(py_source)
 
 
+def pyformat(project_root):
+    cmd = "find . -name '*.py' | xargs autopep8 -i"
+    subprocess.check_output(shlex.split(cmd), shell=True)
+
+
 def imd_data(from_date, to_date, state):
     """
     Download data from IMD for given period.
@@ -198,5 +213,34 @@ def imd_data(from_date, to_date, state):
             file_name = os.path.join(data_dir, name)
             with open(file_name, 'wb') as fh:
                 fh.write(r.content)
-            # print('ssssssssss')
-            # time.sleep(random.randint(15, 20))
+
+
+def ak_dynamic_scan(num, debug):
+    if debug:
+        base_url = 'http://0.0.0.0:8000/'
+    else:
+        base_url = 'https://api.appknox.com/'
+    url = base_url + 'api/token/new.json'
+    print(url)
+    data = {
+        'username': os.environ.get('AK_USER'),
+        'password': os.environ.get('AK_PASS')
+    }
+    response = requests.post(url, data=data)
+
+    try:
+        data = response.json()
+        token = data['token']
+        user_id = data['user']
+    except:
+        print(response.text)
+        return
+
+    url = base_url + 'api/dynamic_shutdown/{}'.format(num)
+    print(url)
+    response = requests.post(url, data=data, auth=(user_id, token))
+    time.sleep(4)
+    url = base_url + 'api/dynamic/{}'.format(num)
+    print(url)
+    response = requests.post(url, data=data, auth=(user_id, token))
+    print(response.text)

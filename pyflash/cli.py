@@ -1,25 +1,15 @@
 import os
-import time
 import subprocess
 
 import click
-import requests
 from isign import isign
-from .utils import imd_data, imp_mgc_fixup, to_kindle
 
-
-@click.command()
-@click.option('--as-cowboy', '-c', is_flag=True, help='Greet as a cowboy.')
-@click.argument('name', default='world', required=False)
-def main(name, as_cowboy):
-    """My Tool does one thing, and one thing well."""
-    greet = 'Howdy' if as_cowboy else 'Hello'
-    click.echo('{0}, {1}.'.format(greet, name))
+from .utils import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
+from .utils import pyformat as _pyformat
 
 
 @click.group()
 def cli():
-    # click.echo('You have got flash like super powers.')
     pass
 
 
@@ -44,6 +34,13 @@ def im_fixup():
 
 
 @cli.command()
+def pyformat():
+    click.echo('Fixing code style in project')
+    project_root = os.getcwd()
+    _pyformat(project_root)
+
+
+@cli.command()
 @click.option('--from_date', '-f', default=None)
 @click.option('--to_date', '-t', default=None)
 @click.option('--state', '-s', default=None)
@@ -55,35 +52,8 @@ def imd(from_date, to_date, state):
 @cli.command()
 @click.option('--num', '-n', default=None)
 @click.option('--debug', '-d', default=False)
-def dynamic(num, debug):
-    if debug:
-        base_url = 'http://0.0.0.0:8000/'
-    else:
-        base_url = 'https://api.appknox.com/'
-    url = base_url + 'api/token/new.json'
-    print(url)
-    data = {
-        'username': os.environ.get('AK_USER'),
-        'password': os.environ.get('AK_PASS')
-    }
-    response = requests.post(url, data=data)
-
-    try:
-        data = response.json()
-        token = data['token']
-        user_id = data['user']
-    except:
-        print(response.text)
-        return
-
-    url = base_url + 'api/dynamic_shutdown/{}'.format(num)
-    print(url)
-    response = requests.post(url, data=data, auth=(user_id, token))
-    time.sleep(4)
-    url = base_url + 'api/dynamic/{}'.format(num)
-    print(url)
-    response = requests.post(url, data=data, auth=(user_id, token))
-    print(response.text)
+def ak_dynamic(num, debug):
+    ak_dynamic_scan(num, debug)
 
 
 @cli.command()
