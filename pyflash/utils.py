@@ -1,21 +1,22 @@
+import ast
 import datetime
 import glob
 import os
-import shutil
 import smtplib
+import shlex
+import shutil
 import subprocess
 import sys
+import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
 from os.path import basename
-import time
-import shlex
 
 import requests
 
 import importmagic
-from email.utils import COMMASPACE, formatdate
 from importmagic import SymbolIndex
 
 
@@ -42,10 +43,15 @@ def to_kindle(source, destination):
     for pattern in patterns:
         files = get_files_with_pattern(pattern, source)
         for filename in files:
+            if ']_' in filename:
+                ext = filename.split('.')[-1]
+                filename = filename.split(']_')[1].split('(')[0] + '.' + ext
+
             # send_to_kindle_mail(filename, kindle)
             print('Sending {}'.format(filename))
             try:
                 shutil.move(filename, destination)
+                pass
             except shutil.Error as e:
                 print(e)
 
@@ -244,3 +250,30 @@ def ak_dynamic_scan(num, debug):
     print(url)
     response = requests.post(url, data=data, auth=(user_id, token))
     print(response.text)
+
+
+def get_imports(tree):
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                imports.append(name.name)
+        if isinstance(node, ast.ImportFrom):
+            for name in node.names:
+                imports.append('{}.{}'.format(node.module, name.name))
+
+    return imports
+
+
+def mopy(cwd=None):
+    if cwd:
+        for fn in glob.glob('**/*.py', recursive=True):
+            print(fn)
+
+            try:
+                tree = ast.parse(open(fn).read())
+            except:
+                continue
+            imports = get_imports(tree)
+            print(imports)
+            # pass

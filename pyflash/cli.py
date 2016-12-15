@@ -6,6 +6,7 @@ from isign import isign
 
 from .utils import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
 from .utils import pyformat as _pyformat
+from .utils import mopy as _mopy
 
 
 @click.group()
@@ -38,6 +39,12 @@ def pyformat():
     click.echo('Fixing code style in project')
     project_root = os.getcwd()
     _pyformat(project_root)
+
+
+@cli.command()
+def mopy():
+    cwd = os.getcwd()
+    _mopy(cwd=cwd)
 
 
 @cli.command()
