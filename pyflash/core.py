@@ -277,3 +277,10 @@ def mopy(cwd=None):
             imports = get_imports(tree)
             print(imports)
             # pass
+
+
+def organize_photos():
+    src_dir = '~/Dropbox/Camera\ Uploads'
+    tgt_dir = '~/Pictures'
+    bkp_dir = '~/Dropbox/photos'
+    cmd = 'mv {}/* {}'.format(src_dir, tgt_dir)

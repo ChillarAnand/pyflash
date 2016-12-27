@@ -2,11 +2,15 @@ import os
 import subprocess
 
 import click
-from isign import isign
+try:
+    from isign import isign
+except:
+    isign = None
 
-from .utils import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
-from .utils import pyformat as _pyformat
-from .utils import mopy as _mopy
+from .core import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
+from .core import pyformat as _pyformat
+from .core import mopy as _mopy
+from .core import organize_photos as _organize_photos
 
 
 @click.group()
@@ -71,3 +75,9 @@ def ios_install(ipa):
     isign.resign(ipa, output_path=ipa)
     cmd = 'ideviceinstaller -i {}'.format(ipa)
     subprocess.check_output(cmd.split())
+
+
+@cli.command()
+def organize_photos():
+    click.echo('Sorting & syncing photos')
+    _organize_photos()
