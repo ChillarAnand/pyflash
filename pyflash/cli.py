@@ -11,6 +11,7 @@ from .core import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
 from .core import pyformat as _pyformat
 from .core import mopy as _mopy
 from .core import organize_photos as _organize_photos
+from .core import ocr as _ocr
 
 
 @click.group()
@@ -81,3 +82,12 @@ def ios_install(ipa):
 def organize_photos():
     click.echo('Sorting & syncing photos')
     _organize_photos()
+
+
+@cli.command()
+@click.option('--engine', '-e', default=None)
+@click.option('--file_name', '-f', default=None)
+@click.option('--language', '-l', default=None)
+@click.option('--output_dir', '-o', default=None)
+def ocr(engine, file_name, language, output_dir):
+    _ocr(engine, file_name, language, output_dir)

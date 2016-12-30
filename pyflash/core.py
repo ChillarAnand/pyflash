@@ -284,3 +284,34 @@ def organize_photos():
     tgt_dir = '~/Pictures'
     bkp_dir = '~/Dropbox/photos'
     cmd = 'mv {}/* {}'.format(src_dir, tgt_dir)
+
+
+def ocropus(file_name, language, output_dir):
+    if not output_dir:
+        output_dir = os.getcwd()
+    ocropy = '/home/chillaranand/projects/python/ocr/ocropy'
+    py = 'python2'
+    cmd = '{} {}/ocropus-nlbin {} -o {}'.format(py, ocropy, file_name, output_dir)
+    print(cmd)
+    subprocess.call(cmd.split())
+
+    cmd = '{} {}/ocropus-gpageseg {}/????.bin.png'.format(py, ocropy, output_dir)
+    print(cmd)
+    subprocess.call(cmd.split())
+
+    model = 'models/{}.pyrnn.gz'.format(language)
+    cmd = '{} {}/ocropus-rpred -Q 4 -m {} {}/????.bin.png'.format(py, ocropy, model, output_dir)
+    print(cmd)
+    subprocess.call(cmd.split())
+
+
+
+    print(file_name, output_dir, language)
+
+
+engines = {'ocropus': ocropus}
+
+
+def ocr(engine, file_name, language, output_dir):
+    engine = ocropus
+    engine(file_name, language, output_dir)
