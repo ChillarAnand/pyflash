@@ -19,6 +19,10 @@ import requests
 import importmagic
 from importmagic import SymbolIndex
 
+import copy
+import math
+from PyPDF2 import PdfFileReader, PdfFileWriter
+
 
 FNULL = open(os.devnull, 'w')
 
@@ -304,8 +308,6 @@ def ocropus(file_name, language, output_dir):
     print(cmd)
     subprocess.call(cmd.split())
 
-
-
     print(file_name, output_dir, language)
 
 
@@ -315,3 +317,44 @@ engines = {'ocropus': ocropus}
 def ocr(engine, file_name, language, output_dir):
     engine = ocropus
     engine(file_name, language, output_dir)
+
+
+def split_pdf(src, dst):
+    if not dst:
+        dst = src
+
+    in_file = PdfFileReader(src)
+    out_file = PdfFileWriter()
+
+    for i in range(in_file.getNumPages()):
+        p = in_file.getPage(i)
+        q = copy.copy(p)
+        q.mediaBox = copy.copy(p.mediaBox)
+
+        x1, x2 = p.mediaBox.lowerLeft
+        x3, x4 = p.mediaBox.upperRight
+
+        x1, x2 = math.floor(x1), math.floor(x2)
+        x3, x4 = math.floor(x3), math.floor(x4)
+        x5, x6 = math.floor(x3/2), math.floor(x4/2)
+
+        if x3 > x4:
+            # horizontal
+            p.mediaBox.upperRight = (x5, x4)
+            p.mediaBox.lowerLeft = (x1, x2)
+
+            q.mediaBox.upperRight = (x3, x4)
+            q.mediaBox.lowerLeft = (x5, x2)
+        else:
+            # vertical
+            p.mediaBox.upperRight = (x3, x4)
+            p.mediaBox.lowerLeft = (x1, x6)
+
+            q.mediaBox.upperRight = (x3, x6)
+            q.mediaBox.lowerLeft = (x1, x2)
+
+        out_file.addPage(p)
+        out_file.addPage(q)
+
+    with open(dst, 'wb') as fh:
+        out_file.write(fh)

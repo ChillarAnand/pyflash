@@ -12,6 +12,7 @@ from .core import pyformat as _pyformat
 from .core import mopy as _mopy
 from .core import organize_photos as _organize_photos
 from .core import ocr as _ocr
+from .core import split_pdf as _split_pdf
 
 
 @click.group()
@@ -90,4 +91,17 @@ def organize_photos():
 @click.option('--language', '-l', default=None)
 @click.option('--output_dir', '-o', default=None)
 def ocr(engine, file_name, language, output_dir):
+    """
+    Run given OCR engine on a given image
+    """
     _ocr(engine, file_name, language, output_dir)
+
+
+@cli.command()
+@click.option('--source', '-s')
+@click.option('--destination', '-d', default=None)
+def split_pdf(source, destination):
+    """
+    Split pdf horizontally/vertically
+    """
+    _split_pdf(source, destination)
