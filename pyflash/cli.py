@@ -13,6 +13,8 @@ from .core import mopy as _mopy
 from .core import organize_photos as _organize_photos
 from .core import ocr as _ocr
 from .core import split_pdf as _split_pdf
+from .core import download_book as _download_book
+from .core import sort_books as _sort_books
 
 
 @click.group()
@@ -29,7 +31,7 @@ def cli():
 @click.option('--kindle', '-k', default='anand21nanda@kindle.com',
               help='Your kindle mail.')
 def send_to_kindle(source, destination, kindle):
-    click.echo('Looking for books...')
+    click.echo('Sending books...')
     to_kindle(source, destination)
 
 
@@ -105,3 +107,18 @@ def split_pdf(source, destination):
     Split pdf horizontally/vertically
     """
     _split_pdf(source, destination)
+
+
+@cli.command()
+@click.option('--book', '-b')
+def download_book(book):
+    """
+    """
+    _download_book(book)
+
+
+@cli.command()
+@click.option('--directory', '-d', default=None)
+def sort_books(directory):
+    click.echo('Sorting books...')
+    _sort_books(directory)

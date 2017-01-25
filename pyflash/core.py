@@ -15,13 +15,12 @@ from email.utils import COMMASPACE, formatdate
 from os.path import basename
 
 import requests
-
 import importmagic
 from importmagic import SymbolIndex
-
-import copy
 import math
 from PyPDF2 import PdfFileReader, PdfFileWriter
+
+from .utils import cd
 
 
 FNULL = open(os.devnull, 'w')
@@ -33,6 +32,26 @@ def envar(var):
     if not var:
         print('{} not set in environment'.var.upper())
     return var
+
+
+def run_shell_command(cmd):
+    cmd = shlex.split(cmd)
+    print(cmd)
+    out = subprocess.check_output(cmd)
+    return out.decode('utf-8')
+
+
+def get_info(filename):
+    cmd = 'ebook-meta {}'.format(filename)
+    out = run_shell_command(cmd)
+    title = out.split('\n')[0].split('    : ')[-1]
+    authors = out.split('\n')[1].split('    : ')[-1]
+    return title
+
+
+def sort_books(directory=None):
+    for file_name in os.listdir(directory):
+        print(os.path.abspath(file_name))
 
 
 def to_kindle(source, destination):
@@ -47,15 +66,9 @@ def to_kindle(source, destination):
     for pattern in patterns:
         files = get_files_with_pattern(pattern, source)
         for filename in files:
-            if ']_' in filename:
-                ext = filename.split('.')[-1]
-                n_filename = source + filename.split(']_')[1].split('(')[0] + '.' + ext
-            shutil.move(filename, n_filename)
-            # send_to_kindle_mail(filename, kindle)
-            print('Sending {}'.format(filename))
+            print('Sending {}'.format(n_filename))
             try:
                 shutil.move(n_filename, destination)
-                pass
             except shutil.Error as e:
                 print(e)
 
@@ -295,18 +308,25 @@ def ocropus(file_name, language, output_dir):
         output_dir = os.getcwd()
     ocropy = '/home/chillaranand/projects/python/ocr/ocropy'
     py = 'python2'
-    cmd = '{} {}/ocropus-nlbin {} -o {}'.format(py, ocropy, file_name, output_dir)
-    print(cmd)
-    subprocess.call(cmd.split())
 
-    cmd = '{} {}/ocropus-gpageseg {}/????.bin.png'.format(py, ocropy, output_dir)
-    print(cmd)
-    subprocess.call(cmd.split())
+    file_name = os.path.abspath(file_name)
 
-    model = 'models/{}.pyrnn.gz'.format(language)
-    cmd = '{} {}/ocropus-rpred -Q 4 -m {} {}/????.bin.png'.format(py, ocropy, model, output_dir)
-    print(cmd)
-    subprocess.call(cmd.split())
+    with cd(ocropy):
+        cmd = '{} ocropus-nlbin {} -o {} -n '.format(
+            py, file_name, output_dir)
+        print(cmd)
+        subprocess.call(cmd.split())
+
+        cmd = '{} ocropus-gpageseg {}/????.bin.png -n '.format(
+            py, output_dir)
+        print(cmd)
+        subprocess.call(cmd.split())
+
+        model = 'models/{}.pyrnn.gz'.format(language)
+        cmd = '{} ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(
+            py, model, output_dir)
+        print(cmd)
+        subprocess.call(cmd.split())
 
     print(file_name, output_dir, language)
 

@@ -3,7 +3,7 @@ My Tool does one thing, and one thing well.
 """
 from setuptools import find_packages, setup
 
-dependencies = ['click']
+dependencies = open('requirements.txt').read().splitlines()
 
 setup(
     name='pyflash',
