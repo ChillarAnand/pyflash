@@ -2,17 +2,11 @@ import ast
 import datetime
 import glob
 import os
-import smtplib
 import shlex
 import shutil
 import subprocess
 import sys
 import time
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import COMMASPACE, formatdate
-from os.path import basename
 
 import requests
 import importmagic
@@ -36,102 +30,65 @@ def envar(var):
 
 def run_shell_command(cmd):
     cmd = shlex.split(cmd)
-    print(cmd)
     out = subprocess.check_output(cmd)
     return out.decode('utf-8')
 
 
-def get_info(filename):
-    cmd = 'ebook-meta {}'.format(filename)
-    out = run_shell_command(cmd)
-    title = out.split('\n')[0].split('    : ')[-1]
-    authors = out.split('\n')[1].split('    : ')[-1]
-    return title
+def get_book_info(filename):
+    cmd = 'ebook-meta "{}"'.format(filename)
+    output = run_shell_command(cmd)
+    output = output.split('\n')
+    title = next(i.split('    : ')[-1] for i in output if 'Title' in i)
+    authors = next(i.split('    : ')[-1] for i in output if 'Author' in i)
+    return (title, authors)
 
 
-def sort_books(directory=None):
+def organize_books(directory=None):
+    if not directory:
+        directory = os.getcwd()
     for file_name in os.listdir(directory):
-        print(os.path.abspath(file_name))
+        title, authors = get_book_info(file_name)
+        title = title.replace(" ", "_").lower()
+        if title == 'unknown':
+            continue
+        ext = file_name.split('.')[-1]
+        new_file_name = '{}.{}'.format(title, ext)
+        if file_name == new_file_name:
+            continue
+        shutil.move(file_name, os.path.join(directory, new_file_name))
+        print(new_file_name)
 
 
-def to_kindle(source, destination):
+def convert_epub_to_mobi(source):
     patterns = ['*.epub']
-    for pattern in patterns:
-        files = get_files_with_pattern(pattern, source)
-        for filename in files:
-            convert_to_mobi(filename)
-            shutil.move(filename, "/tmp/")
+    files = get_files_with_patterns(patterns, source)
+    for filename in files:
+        file_path, ext = os.path.splitext(filename)
+        mobi_file = file_path + '.mobi'
+        command = ['ebook-convert', filename, mobi_file]
+        subprocess.check_output(command)
+        shutil.move(filename, "/tmp/")
 
+
+def send_to_kindle(source, destination):
+    source = os.path.expanduser(source)
+    destination = os.path.expanduser(destination)
+    convert_epub_to_mobi(source)
     patterns = ['*.azw3', '*.mobi', '*.pdf']
+    files = get_files_with_patterns(patterns, source)
+    for filename in files:
+        print('Moving {}'.format(filename))
+        try:
+            shutil.move(filename, destination)
+        except shutil.Error as e:
+            print(e)
+
+
+def get_files_with_patterns(patterns, root):
     for pattern in patterns:
-        files = get_files_with_pattern(pattern, source)
-        for filename in files:
-            print('Sending {}'.format(n_filename))
-            try:
-                shutil.move(n_filename, destination)
-            except shutil.Error as e:
-                print(e)
-
-
-def get_files_with_pattern(pattern, root):
-    path = os.path.join(root, '**', pattern)
-    for filename in glob.iglob(path, recursive=True):
-        yield filename
-
-
-def convert_to_mobi(filename):
-    file_path, ext = os.path.splitext(filename)
-    mobi_file = file_path + '.mobi'
-    command = ['ebook-convert', filename, mobi_file]
-    print(' '.join(command))
-    subprocess.check_output(command)
-
-
-def send_to_kindle_mail(filename, kindle):
-    send_mail(
-        'anand21nanda@gmail.com',
-        ['anand21nanda@kindle.com'],
-        'Kindle book: {}'.format(filename),
-        'Kindle book: {}'.format(filename),
-        files=[filename]
-    )
-
-
-def send_mail(m_from, m_to, subject, text,
-              files=None, server='smtp.gmail.com'):
-    msg = MIMEMultipart()
-    msg['From'] = m_from
-    msg['To'] = COMMASPACE.join(m_to)
-    msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(text))
-
-    for f in files:
-        with open(f, "rb") as fh:
-            part = MIMEApplication(
-                fh.read(),
-                Name=basename(f)
-            )
-            part['Content-Disposition'] = 'attachment; filename={}'.format(
-                basename(f)
-            )
-            msg.attach(part)
-
-    server = smtplib.SMTP_SSL(server, 465)
-    server.ehlo()
-    g_user = os.environ.get('GMAIL_USERNAME')
-    g_pass = os.environ.get('GMAIL_PASSWORD')
-    if not (g_user and g_pass):
-        print('Please set GMAIL_USERNAME, GMAIL_PASSWORD env variables.')
-        sys.exit()
-    server.login(g_user, g_pass)
-    server.sendmail(m_from, m_to, msg.as_string())
-    server.close()
-    print('Email sent!')
-
-
-# send_mail('a@a.com', 'anand21nanda@gmail.com', 'f', 'f')
+        path = os.path.join(root, '**', pattern)
+        for filename in glob.iglob(path, recursive=True):
+            yield filename
 
 
 def fix_imports(index, source):
@@ -155,7 +112,7 @@ def imp_mgc_fixup(project_root):
         with open('index.json', 'w') as fd:
             index.serialize(fd)
 
-    files = get_files_with_pattern('*.py', root=project_root)
+    files = get_files_with_patterns(['*.py'], root=project_root)
     for f in files:
         with open(f, 'w+') as fh:
             py_source = fh.read()
@@ -306,7 +263,7 @@ def organize_photos():
 def ocropus(file_name, language, output_dir):
     if not output_dir:
         output_dir = os.getcwd()
-    ocropy = '/home/chillaranand/projects/python/ocr/ocropy'
+    ocropy = '/home/chillaranand/projects/ocropy'
     py = 'python2'
 
     file_name = os.path.abspath(file_name)
@@ -378,3 +335,11 @@ def split_pdf(src, dst):
 
     with open(dst, 'wb') as fh:
         out_file.write(fh)
+
+
+def download_book():
+    pass
+
+
+def organize_downloads():
+    pass

@@ -2,19 +2,23 @@ import os
 import subprocess
 
 import click
+
+from .core import imd_data, imp_mgc_fixup
+from .core import download_book as _download_book
+from .core import mopy as _mopy
+from .core import ocr as _ocr
+from .core import organize_books as _organize_books
+from .core import organize_downloads as _organize_downloads
+from .core import organize_photos as _organize_photos
+from .core import pyformat as _pyformat
+from .core import split_pdf as _split_pdf
+from .core import send_to_kindle as _send_to_kindle
+
+
 try:
     from isign import isign
 except:
     isign = None
-
-from .core import imd_data, imp_mgc_fixup, to_kindle, ak_dynamic_scan
-from .core import pyformat as _pyformat
-from .core import mopy as _mopy
-from .core import organize_photos as _organize_photos
-from .core import ocr as _ocr
-from .core import split_pdf as _split_pdf
-from .core import download_book as _download_book
-from .core import sort_books as _sort_books
 
 
 @click.group()
@@ -23,16 +27,16 @@ def cli():
 
 
 @cli.command()
-@click.option('--source', '-s', default='/home/chillaranand/Downloads/',
+@click.option('--source', '-s', default='~/Downloads/',
               help='Enter source location.')
-@click.option('--destination', '-d',
-              default='/home/chillaranand/Dropbox/books/',
-              help='Enter source location.')
-@click.option('--kindle', '-k', default='anand21nanda@kindle.com',
-              help='Your kindle mail.')
-def send_to_kindle(source, destination, kindle):
-    click.echo('Sending books...')
-    to_kindle(source, destination)
+@click.option('--destination', '-d', default='~/Dropbox/books/',
+              help='Enter destination location.')
+def send_to_kindle(source, destination):
+    """
+    Convert and send books to kindle.
+    """
+    click.echo('Locating books...')
+    _send_to_kindle(source, destination)
 
 
 @cli.command()
@@ -65,13 +69,6 @@ def imd(from_date, to_date, state):
 
 
 @cli.command()
-@click.option('--num', '-n', default=None)
-@click.option('--debug', '-d', default=False)
-def ak_dynamic(num, debug):
-    ak_dynamic_scan(num, debug)
-
-
-@cli.command()
 @click.option('--ipa', '-i', default=None)
 def ios_install(ipa):
     ipa = os.path.abspath(ipa)
@@ -79,12 +76,6 @@ def ios_install(ipa):
     isign.resign(ipa, output_path=ipa)
     cmd = 'ideviceinstaller -i {}'.format(ipa)
     subprocess.check_output(cmd.split())
-
-
-@cli.command()
-def organize_photos():
-    click.echo('Sorting & syncing photos')
-    _organize_photos()
 
 
 @cli.command()
@@ -113,12 +104,34 @@ def split_pdf(source, destination):
 @click.option('--book', '-b')
 def download_book(book):
     """
+    Search and download book by name
     """
     _download_book(book)
 
 
 @cli.command()
 @click.option('--directory', '-d', default=None)
-def sort_books(directory):
-    click.echo('Sorting books...')
-    _sort_books(directory)
+def organize_books(directory):
+    """
+    Organize books in a specified directory.
+    """
+    click.echo('Organizing books. Please wait...')
+    _organize_books(directory)
+
+
+@cli.command()
+def organize_photos():
+    """
+    Locate photos and organize them by date.
+    """
+    click.echo('Sorting & syncing photos')
+    _organize_photos()
+
+
+@cli.command()
+def organize_downloads():
+    """
+    Monitor and organize downloaded files.
+    """
+    click.echo('Sorting & syncing photos')
+    _organize_downloads()
