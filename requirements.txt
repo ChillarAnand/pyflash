@@ -1,3 +1,7 @@
 click
 requests
 pypdf2
+babelfish
+subliminal
+autopep8
+importmagic

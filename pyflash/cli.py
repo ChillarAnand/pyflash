@@ -3,14 +3,15 @@ import subprocess
 
 import click
 
-from .core import imd_data, imp_mgc_fixup
+from .core import imd_data
 from .core import download_book as _download_book
-from .core import mopy as _mopy
+from .core import download_subtitles as _download_subtitles
+from .core import fix_imports as _fix_imports
+from .core import fix_build as _fix_build
+from .core import monitor_downloads as _monitor_downloads
 from .core import ocr as _ocr
 from .core import organize_books as _organize_books
-from .core import organize_downloads as _organize_downloads
 from .core import organize_photos as _organize_photos
-from .core import pyformat as _pyformat
 from .core import split_pdf as _split_pdf
 from .core import send_to_kindle as _send_to_kindle
 
@@ -33,30 +34,29 @@ def cli():
               help='Enter destination location.')
 def send_to_kindle(source, destination):
     """
-    Convert and send books to kindle.
+    Send books to kindle via Dropbox/IFTTT.
     """
     click.echo('Locating books...')
     _send_to_kindle(source, destination)
 
 
 @cli.command()
-def im_fixup():
-    click.echo('Fixing imports in python project')
+def fix_imports():
+    """
+    Fix imports in a python project.
+    """
     project_root = os.getcwd()
-    imp_mgc_fixup(project_root)
+    _fix_imports(project_root)
 
 
 @cli.command()
-def pyformat():
-    click.echo('Fixing code style in project')
-    project_root = os.getcwd()
-    _pyformat(project_root)
-
-
-@cli.command()
-def mopy():
-    cwd = os.getcwd()
-    _mopy(cwd=cwd)
+def fix_build(project_root=None):
+    """
+    Fix a failing CI build.
+    """
+    if not project_root:
+        project_root = os.getcwd()
+    _fix_build(project_root)
 
 
 @cli.command()
@@ -64,13 +64,19 @@ def mopy():
 @click.option('--to_date', '-t', default=None)
 @click.option('--state', '-s', default=None)
 def imd(from_date, to_date, state):
+    """
+    Download IMD date for given range.
+    """
     click.echo('Getting IMD data')
     imd_data(from_date, to_date, state)
 
 
 @cli.command()
 @click.option('--ipa', '-i', default=None)
-def ios_install(ipa):
+def ipa_install(ipa):
+    """
+    Resign & install iOS apps.
+    """
     ipa = os.path.abspath(ipa)
     print('Resigning ipa: {}'.format(ipa))
     isign.resign(ipa, output_path=ipa)
@@ -129,9 +135,20 @@ def organize_photos():
 
 
 @cli.command()
-def organize_downloads():
+def monitor_downloads():
     """
     Monitor and organize downloaded files.
     """
-    click.echo('Sorting & syncing photos')
-    _organize_downloads()
+    click.echo('Monitoring downloads...')
+    _monitor_downloads()
+
+
+@cli.command()
+def download_subtitles(directory=None):
+    """
+    Download subtitles for videos in a directory.
+    """
+    if not directory:
+        directory = os.getcwd()
+    click.echo('Downloading subtitles for videos in {}'.format(directory))
+    _download_subtitles(directory)

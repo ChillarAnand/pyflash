@@ -1,18 +1,23 @@
 import ast
+import copy
 import datetime
 import glob
+import logging
+import math
 import os
+import pathlib
 import shlex
 import shutil
 import subprocess
 import sys
 import time
 
+import babelfish
 import requests
 import importmagic
-from importmagic import SymbolIndex
-import math
-from PyPDF2 import PdfFileReader, PdfFileWriter
+import PyPDF2
+from subliminal import (download_best_subtitles, region, save_subtitles,
+                        scan_videos)
 
 from .utils import cd
 
@@ -105,7 +110,7 @@ def imp_mgc_fixup(project_root):
     try:
         print('loading index')
         with open('index.json') as fd:
-            index = SymbolIndex.deserialize(fd)
+            index = importmagic.SymbolIndex.deserialize(fd)
     except:
         print('building index')
         index.build_index(sys.path)
@@ -254,10 +259,11 @@ def mopy(cwd=None):
 
 
 def organize_photos():
-    src_dir = '~/Dropbox/Camera\ Uploads'
-    tgt_dir = '~/Pictures'
-    bkp_dir = '~/Dropbox/photos'
-    cmd = 'mv {}/* {}'.format(src_dir, tgt_dir)
+    # src_dir = '~/Dropbox/Camera\ Uploads'
+    # tgt_dir = '~/Pictures'
+    # bkp_dir = '~/Dropbox/photos'
+    # cmd = 'mv {}/* {}'.format(src_dir, tgt_dir)
+    pass
 
 
 def ocropus(file_name, language, output_dir):
@@ -300,8 +306,8 @@ def split_pdf(src, dst):
     if not dst:
         dst = src
 
-    in_file = PdfFileReader(src)
-    out_file = PdfFileWriter()
+    in_file = PyPDF2.PdfFileReader(src)
+    out_file = PyPDF2.PdfFileWriter()
 
     for i in range(in_file.getNumPages()):
         p = in_file.getPage(i)
@@ -341,5 +347,58 @@ def download_book():
     pass
 
 
-def organize_downloads():
+def monitor_downloads():
     pass
+
+
+def _fix_pep8(project_root):
+    logger = logging.getLogger(__name__)
+    logger.info('Fixing PEP8 issues')
+    cmd = 'autopep8 --recursive --in-place {}'.format(project_root)
+    run_shell_command(cmd)
+
+
+def importmagic_fixup(index, code):
+    scope = importmagic.Scope.from_source(code)
+    unresolved, unreferenced = scope.find_unresolved_and_unreferenced_symbols()
+    code = importmagic.update_imports(code, index, unresolved, unreferenced)
+    return code
+
+
+def _fix_imports(project_root):
+    index = importmagic.SymbolIndex()
+    name = project_root.split('/')[-1]
+    index.get_or_create_index(name=name, paths=[project_root] + sys.path)
+    importmagic.Imports(index=index, source=None, root_dir=project_root)
+
+    files = get_files_with_patterns(['*.py'], root=project_root)
+    for filename in files:
+        with open(filename, 'r') as fh:
+            code = fh.read()
+        if not code:
+            continue
+        code = importmagic_fixup(index, code)
+        with open(filename, 'w') as fh:
+            fh.write(code)
+
+
+def fix_build(project_root):
+    _fix_pep8(project_root)
+    _fix_imports(project_root)
+
+
+def get_cache_file(name):
+    file_path = '~/.cache/{}'.format(name)
+    file_path = os.path.expanduser(file_path)
+    pathlib.Path(file_path).touch()
+    return file_path
+
+
+def download_subtitles(directory):
+    name = 'dogpile.cache.dbm'
+    cache_file = get_cache_file(name)
+    region.configure('dogpile.cache.dbm', arguments={'filename': cache_file})
+    videos = scan_videos(directory)
+    subtitles = download_best_subtitles(videos, {babelfish.Language('eng')})
+    for video in videos:
+        save_subtitles(video, subtitles[video], single=True)
