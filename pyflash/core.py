@@ -1,99 +1,79 @@
 import ast
 import copy
-import datetime
+import datetime as dt
 import glob
 import logging
 import math
+import calendar
 import os
 import pathlib
 import shlex
 import shutil
 import subprocess
 import sys
-import time
+import tempfile
+from os.path import dirname, expanduser, join
 
 import babelfish
-import requests
 import importmagic
 import PyPDF2
-from subliminal import (download_best_subtitles, region, save_subtitles,
-                        scan_videos)
+import pypandoc
+import requests
+from dateutil import rrule
+from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
-from .utils import cd
+from .utils import cd, get_active_hosts, get_ip, ping, run_shell_command, ebook_meta_data, matched_files, convert_books
 
 
 FNULL = open(os.devnull, 'w')
 
+formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
 
-def envar(var):
-    var = var.upper()
-    var = os.environ.get(var, None)
-    if not var:
-        print('{} not set in environment'.var.upper())
-    return var
+sh = logging.StreamHandler(sys.stdout)
+sh.setLevel(logging.DEBUG)
+sh.setFormatter(formatter)
 
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.addHandler(sh)
 
-def run_shell_command(cmd):
-    cmd = shlex.split(cmd)
-    out = subprocess.check_output(cmd)
-    return out.decode('utf-8')
-
-
-def get_book_info(filename):
-    cmd = 'ebook-meta "{}"'.format(filename)
-    output = run_shell_command(cmd)
-    output = output.split('\n')
-    title = next(i.split('    : ')[-1] for i in output if 'Title' in i)
-    authors = next(i.split('    : ')[-1] for i in output if 'Author' in i)
-    return (title, authors)
+logger = logging.getLogger(__name__)
 
 
 def organize_books(directory=None):
     if not directory:
         directory = os.getcwd()
-    for file_name in os.listdir(directory):
-        title, authors = get_book_info(file_name)
-        title = title.replace(" ", "_").lower()
-        if title == 'unknown':
+    logger.info('Organizing books in {}'.format(directory))
+
+    patterns = ['*.epub', '*.mobi', '*.pdf']
+    files = matched_files(patterns, directory)
+    for file_name in files:
+        meta_data = ebook_meta_data(file_name)
+        title = meta_data.get('Title', '')
+        if not title or title == 'Unknown':
             continue
+        title = title.replace(" ", "_").lower()
         ext = file_name.split('.')[-1]
-        new_file_name = '{}.{}'.format(title, ext)
-        if file_name == new_file_name:
+        dir_name = dirname(file_name)
+        new_file_name = join(dir_name, '{}.{}'.format(title, ext))
+        if new_file_name == file_name:
             continue
         shutil.move(file_name, os.path.join(directory, new_file_name))
-        print(new_file_name)
-
-
-def convert_epub_to_mobi(source):
-    patterns = ['*.epub']
-    files = get_files_with_patterns(patterns, source)
-    for filename in files:
-        file_path, ext = os.path.splitext(filename)
-        mobi_file = file_path + '.mobi'
-        command = ['ebook-convert', filename, mobi_file]
-        subprocess.check_output(command)
-        shutil.move(filename, "/tmp/")
+        logger.info(f'Rearranged {file_name} -> {new_file_name}')
 
 
 def send_to_kindle(source, destination):
-    source = os.path.expanduser(source)
-    destination = os.path.expanduser(destination)
-    convert_epub_to_mobi(source)
+    source = expanduser(source)
+    destination = expanduser(destination)
+    convert_books(source, '.epub', '.mobi')
     patterns = ['*.azw3', '*.mobi', '*.pdf']
-    files = get_files_with_patterns(patterns, source)
+    files = matched_files(patterns, source)
     for filename in files:
-        print('Moving {}'.format(filename))
+        logger.info('Syncing {}'.format(filename))
         try:
             shutil.move(filename, destination)
         except shutil.Error as e:
-            print(e)
-
-
-def get_files_with_patterns(patterns, root):
-    for pattern in patterns:
-        path = os.path.join(root, '**', pattern)
-        for filename in glob.iglob(path, recursive=True):
-            yield filename
+            logger.error(e)
 
 
 def fix_imports(index, source):
@@ -108,22 +88,18 @@ def fix_imports(index, source):
 def imp_mgc_fixup(project_root):
     index = importmagic.SymbolIndex()
     try:
-        print('loading index')
         with open('index.json') as fd:
             index = importmagic.SymbolIndex.deserialize(fd)
     except:
-        print('building index')
         index.build_index(sys.path)
         with open('index.json', 'w') as fd:
             index.serialize(fd)
 
-    files = get_files_with_patterns(['*.py'], root=project_root)
+    files = matched_files(['*.py'], root=project_root)
     for f in files:
         with open(f, 'w+') as fh:
             py_source = fh.read()
-            print(py_source)
             py_source = fix_imports(index, py_source)
-            print(py_source)
             fh.write(py_source)
 
 
@@ -137,9 +113,9 @@ def imd_data(from_date, to_date, state):
     Download data from IMD for given period.
     """
     if not from_date:
-        now = datetime.datetime.now()
+        now = dt.datetime.now()
         from_date = now.strftime('%d%2f%m%2f%Y')
-        delta = datetime.timedelta(days=31)
+        delta = dt.timedelta(days=31)
         month = now + delta
         to_date = month.strftime('%d%2f%m%2f%Y')
 
@@ -147,25 +123,20 @@ def imd_data(from_date, to_date, state):
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    base_url = 'http://imdaws.com/'
+    host = 'http://imdaws.com/'
     endpoint = 'userdetails.aspx?Dtype={}&State={}&Dist=0&Loc=0&FromDate={}&ToDate={}&Time='
 
     username = os.environ.get('IMD_USERNAME')
     password = os.environ.get('IMD_PASSWORD')
     if not (username and password):
-        print('Please set IMD_USERNAME, IMD_PASSWORD env variables.')
+        logger.error('Please set IMD_USERNAME, IMD_PASSWORD env variables.')
         sys.exit()
 
     data = {
         'txtUserName': username,
         'txtPassword': password,
         'btnSave': 'Download',
-        '__EVENTTARGET': '',
-        '__EVENTARGUMENT': '',
-        '__VIEWSTATE': '/wEPDwUKMTY1MTEwNzczMw9kFgICBA9kFgICAQ8PFgIeBFRleHQFBjg0NDk1M2RkZC6DYVzVd15uvyThvNG6/M2DvFM9',
-        '__EVENTVALIDATION': '/wEWBQKWseTfCwKl1bKzCQK1qbSRCwKct7iSDAK+rvNOIfrKsC5vyGsh5LvcfjWT2CXjvbA=',
     }
-
     d_types = ['AWS', 'ARG']
     d_types = ['AWS']
 
@@ -174,61 +145,21 @@ def imd_data(from_date, to_date, state):
     for d_type in d_types:
         for s in states:
             ep = endpoint.format(d_type, s, from_date, to_date)
-            url = base_url + ep
-            print(url)
+            url = host + ep
 
             resp = requests.post(url, data=data)
             if not resp.status_code == 200:
-                print('error', url)
+                logger.error(f'{url}')
                 continue
 
             data = resp.content.decode('utf-8')
 
-            try:
-                # capture url
-                d_url = data.split("DownloadData('")[1].split("'")[0]
-            except:
-                # import ipdb; ipdb.set_trace()
-                # print(data)
-                print('error', url)
-                continue
-
+            d_url = data.split("DownloadData('")[1].split("'")[0]
             r = requests.get(d_url)
             name = '_'.join((d_type, str(state))) + '.csv'
             file_name = os.path.join(data_dir, name)
             with open(file_name, 'wb') as fh:
                 fh.write(r.content)
-
-
-def ak_dynamic_scan(num, debug):
-    if debug:
-        base_url = 'http://0.0.0.0:8000/'
-    else:
-        base_url = 'https://api.appknox.com/'
-    url = base_url + 'api/token/new.json'
-    print(url)
-    data = {
-        'username': os.environ.get('AK_USER'),
-        'password': os.environ.get('AK_PASS')
-    }
-    response = requests.post(url, data=data)
-
-    try:
-        data = response.json()
-        token = data['token']
-        user_id = data['user']
-    except:
-        print(response.text)
-        return
-
-    url = base_url + 'api/dynamic_shutdown/{}'.format(num)
-    print(url)
-    response = requests.post(url, data=data, auth=(user_id, token))
-    time.sleep(4)
-    url = base_url + 'api/dynamic/{}'.format(num)
-    print(url)
-    response = requests.post(url, data=data, auth=(user_id, token))
-    print(response.text)
 
 
 def get_imports(tree):
@@ -258,12 +189,12 @@ def mopy(cwd=None):
             # pass
 
 
-def organize_photos():
-    # src_dir = '~/Dropbox/Camera\ Uploads'
-    # tgt_dir = '~/Pictures'
-    # bkp_dir = '~/Dropbox/photos'
-    # cmd = 'mv {}/* {}'.format(src_dir, tgt_dir)
-    pass
+def organize_photos(directory):
+    if not directory:
+        directory = os.getcwd()
+    logger.info('Organizing photos in {}'.format(directory))
+    cmd = f'python2 sortphotos.py --rename %Y_%m_%d_%H_%M_%S -r {directory}'
+    run_shell_command(cmd)
 
 
 def ocropus(file_name, language, output_dir):
@@ -275,30 +206,23 @@ def ocropus(file_name, language, output_dir):
     file_name = os.path.abspath(file_name)
 
     with cd(ocropy):
-        cmd = '{} ocropus-nlbin {} -o {} -n '.format(
-            py, file_name, output_dir)
-        print(cmd)
-        subprocess.call(cmd.split())
-
-        cmd = '{} ocropus-gpageseg {}/????.bin.png -n '.format(
-            py, output_dir)
-        print(cmd)
-        subprocess.call(cmd.split())
-
+        cmd = '{} ocropus-nlbin {} -o {} -n '.format(py, file_name, output_dir)
+        logger.info(cmd)
+        run_shell_command(cmd)
+        cmd = '{} ocropus-gpageseg {}/????.bin.png -n '.format(py, output_dir)
+        logger.info(cmd)
+        run_shell_command(cmd)
         model = 'models/{}.pyrnn.gz'.format(language)
-        cmd = '{} ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(
-            py, model, output_dir)
-        print(cmd)
-        subprocess.call(cmd.split())
-
-    print(file_name, output_dir, language)
+        cmd = '{} ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(py, model, output_dir)
+        logger.info(cmd)
+        run_shell_command(cmd)
 
 
 engines = {'ocropus': ocropus}
 
 
 def ocr(engine, file_name, language, output_dir):
-    engine = ocropus
+    engine = engines[engine]
     engine(file_name, language, output_dir)
 
 
@@ -382,19 +306,24 @@ def _fix_imports(project_root):
             fh.write(code)
 
 
-def fix_build(project_root):
-    _fix_pep8(project_root)
-    _fix_imports(project_root)
+def fix_build(directory):
+    if not directory:
+        directory = os.getcwd()
+    _fix_pep8(directory)
+    _fix_imports(directory)
 
 
 def get_cache_file(name):
     file_path = '~/.cache/{}'.format(name)
-    file_path = os.path.expanduser(file_path)
+    file_path = expanduser(file_path)
     pathlib.Path(file_path).touch()
     return file_path
 
 
 def download_subtitles(directory):
+    if not directory:
+        directory = os.getcwd()
+    logger.info('Downloading subtitles for videos in {}'.format(directory))
     name = 'dogpile.cache.dbm'
     cache_file = get_cache_file(name)
     region.configure('dogpile.cache.dbm', arguments={'filename': cache_file})
@@ -402,3 +331,55 @@ def download_subtitles(directory):
     subtitles = download_best_subtitles(videos, {babelfish.Language('eng')})
     for video in videos:
         save_subtitles(video, subtitles[video], single=True)
+
+
+def adb_connect(interface):
+    if not interface:
+        interface = 'wlo1'
+    logger.info('Scanning "{interface}" for open ports...')
+    ip = get_ip(interface)
+    network = '.'.join(ip.split('.')[:-1] + ['0']) + '/24'
+    hosts = get_active_hosts(network)
+    for host in hosts():
+        up = ping(host, port=5555)
+        if up:
+            out = run_shell_command('adb connect {}'.format(host))
+            print(out)
+
+
+def rent_receipts(name, amount, owner_name, address, year):
+    RENT_RECEIPT = """
+
+### RENT RECEIPT - {} {}
+
+&nbsp;
+
+Received sum of **Rs. {}** from **{}** towards the rent of property located at **{}** for the period from **{}** to **{}**.
+
+
+&nbsp;
+
+&nbsp;
+
+**{}**
+
+{}
+"""
+    start_date = dt.date(year, 4, 1)
+
+    for date in rrule.rrule(freq=rrule.MONTHLY, count=12, dtstart=start_date):
+        month = date.strftime('%B')
+        month_start = date.strftime('%d %B %Y')
+        _, month_days = calendar.monthrange(int(date.strftime('%Y')), int(date.strftime('%m')))
+        month_end = date + dt.timedelta(days=month_days - 1)
+        month_end = month_end.strftime('%d %B %Y')
+        md = RENT_RECEIPT.format(
+            month, year, amount, name, address, month_start, month_end, owner_name, month_end,
+        )
+        pdf_file = 'rent_receipt_{}.pdf'.format(date.strftime('%Y_%m'))
+        print('Generating {}'.format(pdf_file))
+        _, tmp_file = tempfile.mkstemp()
+        with open(tmp_file, 'w') as fh:
+            fh.write(md)
+        pypandoc.convert_file(tmp_file, format='md', to='pdf', outputfile=pdf_file)
+        os.remove(tmp_file)

@@ -3,6 +3,7 @@ import subprocess
 
 import click
 
+from .core import adb_connect as _adb_connect
 from .core import imd_data
 from .core import download_book as _download_book
 from .core import download_subtitles as _download_subtitles
@@ -14,6 +15,7 @@ from .core import organize_books as _organize_books
 from .core import organize_photos as _organize_photos
 from .core import split_pdf as _split_pdf
 from .core import send_to_kindle as _send_to_kindle
+from .core import rent_receipts as _rent_receipts
 
 
 try:
@@ -28,6 +30,14 @@ def cli():
 
 
 @cli.command()
+def adb_connect(interface=None):
+    """
+    Scan network and connect to adb via network.
+    """
+    _adb_connect(interface)
+
+
+@cli.command()
 @click.option('--source', '-s', default='~/Downloads/',
               help='Enter source location.')
 @click.option('--destination', '-d', default='~/Dropbox/books/',
@@ -36,27 +46,23 @@ def send_to_kindle(source, destination):
     """
     Send books to kindle via Dropbox/IFTTT.
     """
-    click.echo('Locating books...')
     _send_to_kindle(source, destination)
 
 
 @cli.command()
-def fix_imports():
+def fix_imports(directory=None):
     """
     Fix imports in a python project.
     """
-    project_root = os.getcwd()
-    _fix_imports(project_root)
+    _fix_imports(directory)
 
 
 @cli.command()
-def fix_build(project_root=None):
+def fix_build(directory=None):
     """
     Fix a failing CI build.
     """
-    if not project_root:
-        project_root = os.getcwd()
-    _fix_build(project_root)
+    _fix_build(directory)
 
 
 @cli.command()
@@ -91,7 +97,7 @@ def ipa_install(ipa):
 @click.option('--output_dir', '-o', default=None)
 def ocr(engine, file_name, language, output_dir):
     """
-    Run given OCR engine on a given image
+    Run given OCR engine on given image.
     """
     _ocr(engine, file_name, language, output_dir)
 
@@ -101,7 +107,7 @@ def ocr(engine, file_name, language, output_dir):
 @click.option('--destination', '-d', default=None)
 def split_pdf(source, destination):
     """
-    Split pdf horizontally/vertically
+    Split pdf horizontally/vertically.
     """
     _split_pdf(source, destination)
 
@@ -121,17 +127,15 @@ def organize_books(directory):
     """
     Organize books in a specified directory.
     """
-    click.echo('Organizing books. Please wait...')
     _organize_books(directory)
 
 
 @cli.command()
-def organize_photos():
+def organize_photos(directory=None):
     """
-    Locate photos and organize them by date.
+    Organize photos by date.
     """
-    click.echo('Sorting & syncing photos')
-    _organize_photos()
+    _organize_photos(directory)
 
 
 @cli.command()
@@ -139,7 +143,6 @@ def monitor_downloads():
     """
     Monitor and organize downloaded files.
     """
-    click.echo('Monitoring downloads...')
     _monitor_downloads()
 
 
@@ -148,7 +151,18 @@ def download_subtitles(directory=None):
     """
     Download subtitles for videos in a directory.
     """
-    if not directory:
-        directory = os.getcwd()
-    click.echo('Downloading subtitles for videos in {}'.format(directory))
     _download_subtitles(directory)
+
+
+@cli.command()
+def rent_receipts():
+    """
+    Generate monthly rent receipts for a given FY.
+    """
+    name = input('Your name [Example: Raj Kumar]: ')
+    amount = input('Rent amount [Ex: 8,000]: ')
+    owner_name = input('Owner name [Ex: Sekhar Raju]: ')
+    address = input('Address [Ex: #26, Gandhi Road, Bangalore]: ')
+    year = input('Year [Ex: 2016-17]: ')
+    year = int(year[:4])
+    _rent_receipts(name, amount, owner_name, address, year)

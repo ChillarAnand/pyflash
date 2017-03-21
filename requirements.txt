@@ -1,7 +1,8 @@
-click
-requests
-pypdf2
-babelfish
-subliminal
-autopep8
-importmagic
+autopep8==1.3.1
+babelfish==0.5.5
+click==6.7
+importmagic==0.1.7
+pypandoc==1.3.3
+PyPDF2==1.26.0
+requests==2.13.0
+subliminal==2.0.5
