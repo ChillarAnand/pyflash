@@ -9,7 +9,7 @@ with open('README.rst') as fh:
 
 setup(
     name='pyflash',
-    version='0.1.1',
+    version='0.2.0',
     url='https://github.com/chillaranand/pyflash',
     license='BSD',
     author='Chillar Anand',
