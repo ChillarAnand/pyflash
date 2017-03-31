@@ -3,11 +3,13 @@ import fcntl
 import glob
 import logging
 import os
+import pathlib
 import shlex
 import shutil
 import socket
 import struct
 import subprocess
+from os.path import expanduser
 
 
 logger = logging.getLogger(__name__)
@@ -104,3 +106,11 @@ def file_list(directory):
     for root_dir, subdirs, files in os.walk(directory):
         for fname in files:
             yield os.path.join(root_dir, fname)
+
+
+def get_cache_file(name):
+    file_path = '~/.cache/{}'.format(name)
+    file_path = expanduser(file_path)
+    if not os.path.exists(file_path):
+        pathlib.Path(file_path).touch()
+    return file_path

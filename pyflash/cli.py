@@ -1,15 +1,13 @@
-import os
-import subprocess
-
 import click
 
 from .core import adb_connect as _adb_connect
-from .core import imd_data
 from .core import download_book as _download_book
+from .core import download_imd_data as _download_imd_data
 from .core import download_subtitles as _download_subtitles
 from .core import fix_imports as _fix_imports
 from .core import fix_build as _fix_build
-from .core import monitor_downloads as _monitor_downloads
+from .core import ipa_install as _ipa_install
+from .core import organize_downloads as _organize_downloads
 from .core import ocr as _ocr
 from .core import organize_books as _organize_books
 from .core import organize_photos as _organize_photos
@@ -69,12 +67,11 @@ def fix_build(directory=None):
 @click.option('--from_date', '-f', default=None)
 @click.option('--to_date', '-t', default=None)
 @click.option('--state', '-s', default=None)
-def imd(from_date, to_date, state):
+def download_imd_data(from_date, to_date, state):
     """
-    Download IMD date for given range.
+    Download IMD data for given range.
     """
-    click.echo('Getting IMD data')
-    imd_data(from_date, to_date, state)
+    _download_imd_data(from_date, to_date, state)
 
 
 @cli.command()
@@ -83,11 +80,7 @@ def ipa_install(ipa):
     """
     Resign & install iOS apps.
     """
-    ipa = os.path.abspath(ipa)
-    print('Resigning ipa: {}'.format(ipa))
-    isign.resign(ipa, output_path=ipa)
-    cmd = 'ideviceinstaller -i {}'.format(ipa)
-    subprocess.check_output(cmd.split())
+    _ipa_install(ipa)
 
 
 @cli.command()
@@ -139,11 +132,11 @@ def organize_photos(directory=None):
 
 
 @cli.command()
-def monitor_downloads():
+def organize_downloads():
     """
-    Monitor and organize downloaded files.
+    Organize downloaded files.
     """
-    _monitor_downloads()
+    _organize_downloads()
 
 
 @cli.command()
