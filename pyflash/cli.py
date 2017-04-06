@@ -132,11 +132,11 @@ def organize_photos(directory=None):
 
 
 @cli.command()
-def organize_downloads():
+def organize_downloads(directory=None):
     """
     Organize downloaded files.
     """
-    _organize_downloads()
+    _organize_downloads(directory)
 
 
 @cli.command()

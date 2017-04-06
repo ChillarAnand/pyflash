@@ -9,10 +9,24 @@ import shutil
 import socket
 import struct
 import subprocess
+from enum import Enum
 from os.path import expanduser
 
 
 logger = logging.getLogger(__name__)
+
+
+class FileType(Enum):
+    BOOK = 0
+    IMAGE = 1
+    VIDEO = 2
+
+
+TARGET_DIRS = {
+    FileType.BOOK: expanduser('~/Documents/'),
+    FileType.IMAGE: expanduser('~/Pictures/'),
+    FileType.VIDEO: expanduser('~/Videos/'),
+}
 
 
 @contextlib.contextmanager
@@ -114,3 +128,22 @@ def get_cache_file(name):
     if not os.path.exists(file_path):
         pathlib.Path(file_path).touch()
     return file_path
+
+
+def guess_file_type(file):
+    ext = file.split('.')[-1].lower()
+    if ext in {'png', 'jpg'}:
+        return FileType.IMAGE
+    if ext in {'mp4', 'mkv', 'avi'}:
+        return FileType.VIDEO
+    if ext in {'mobi', 'pdf', 'epub'}:
+        return FileType.BOOK
+
+
+def relocate_file(file):
+    f_type = guess_file_type(file)
+    if not f_type:
+        return
+    target_dir = TARGET_DIRS[f_type]
+    logger.info('Relocating {} -> {}'.format(file, target_dir))
+    shutil.move(file, os.path.join(target_dir))

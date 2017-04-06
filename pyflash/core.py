@@ -22,7 +22,7 @@ from isign import isign
 from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
 from .utils import get_active_hosts, get_ip, ping, run_shell_command, ebook_meta_data, matched_files, \
-    convert_books, get_cache_file
+    convert_books, get_cache_file, file_list, relocate_file
 
 
 FNULL = open(os.devnull, 'w')
@@ -245,8 +245,11 @@ def download_book():
     pass
 
 
-def organize_downloads():
-    pass
+def organize_downloads(directory):
+    if not directory:
+        directory = os.getcwd()
+    for filename in file_list(directory):
+        relocate_file(filename)
 
 
 def _fix_pep8(project_root):
