@@ -18,7 +18,10 @@ import PyPDF2
 import pypandoc
 import requests
 from dateutil import rrule
-from isign import isign
+try:
+    from isign import isign
+except ImportError:
+    isign = None
 from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
 from .utils import get_active_hosts, get_ip, ping, run_shell_command, ebook_meta_data, matched_files, \
@@ -172,7 +175,7 @@ def organize_photos(directory=None):
     if not directory:
         directory = os.getcwd()
     logger.info('Organizing photos in {}'.format(directory))
-    cmd = 'python2 sortphotos.py --rename %Y_%m_%d_%H_%M_%S -r {}'.format(directory)
+    cmd = "exiftool -r '-FileName<CreateDate' -d '%Y-%m-%d_%H_%M_%S%%-c.%%le' {}".format(directory)
     run_shell_command(cmd)
 
 
@@ -294,9 +297,9 @@ def download_subtitles(directory):
     if not directory:
         directory = os.getcwd()
     logger.info('Downloading subtitles for videos in {}'.format(directory))
-    name = 'dogpile.cache.dbm'
+    backend = 'dogpile.cache.dbm'
     cache_file = get_cache_file('subliminal.cache')
-    region.configure(name, arguments={'filename': cache_file})
+    region.configure(backend, arguments={'filename': cache_file})
     videos = scan_videos(directory)
     subtitles = download_best_subtitles(videos, {babelfish.Language('eng')})
     for video in videos:
