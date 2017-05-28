@@ -13,7 +13,10 @@ from .core import organize_books as _organize_books
 from .core import organize_photos as _organize_photos
 from .core import split_pdf as _split_pdf
 from .core import send_to_kindle as _send_to_kindle
+from .core import rate_movies as _rate_movies
 from .core import rent_receipts as _rent_receipts
+from .core import validate_aadhaar as _validate_aadhaar
+from .core import procfile as _procfile
 
 
 try:
@@ -148,6 +151,16 @@ def download_subtitles(directory=None):
 
 
 @cli.command()
+@click.option('--sort', '-s', default=None)
+def rate_movies(sort, directory=None):
+    """
+    Show IMDb/RT ratings for movies and series.
+    """
+    print(sort)
+    _rate_movies(directory, sort)
+
+
+@cli.command()
 def rent_receipts():
     """
     Generate monthly rent receipts for a given FY.
@@ -159,3 +172,21 @@ def rent_receipts():
     year = input('Year [Ex: 2016-17]: ')
     year = int(year[:4])
     _rent_receipts(name, amount, owner_name, address, year)
+
+
+@cli.command()
+@click.option('--number', '-n', default=None)
+def validate_aadhaar(number):
+    """
+    Check if given AADHAAR number is valid or not.
+    """
+    _validate_aadhaar(number)
+
+
+@cli.command()
+@click.option('--file', '-f', default='Procfile')
+def procfile(file):
+    """
+    Start processes in Procfile
+    """
+    _procfile(file)

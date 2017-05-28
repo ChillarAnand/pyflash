@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import multiprocessing
+import operator
 from os.path import abspath, dirname, expanduser, join
 
 import babelfish
@@ -18,14 +20,16 @@ import PyPDF2
 import pypandoc
 import requests
 from dateutil import rrule
+from prettytable import PrettyTable
 try:
     from isign import isign
-except ImportError:
+except:
     isign = None
 from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
 from .utils import get_active_hosts, get_ip, ping, run_shell_command, ebook_meta_data, matched_files, \
-    convert_books, get_cache_file, file_list, relocate_file
+    convert_books, get_cache_file, file_list, relocate_file, checksum, execute_shell_command, \
+    get_title, movie_info
 
 
 FNULL = open(os.devnull, 'w')
@@ -51,6 +55,7 @@ def organize_books(directory=None):
     patterns = ['*.epub', '*.mobi', '*.pdf']
     files = matched_files(patterns, directory)
     for file_name in files:
+        logger.info(file_name)
         meta_data = ebook_meta_data(file_name)
         title = meta_data.get('Title', '')
         if not title or title == 'Unknown':
@@ -66,6 +71,7 @@ def organize_books(directory=None):
 
 
 def send_to_kindle(source, destination):
+    logger.info('Search for books in {}'.format(source))
     source = expanduser(source)
     destination = expanduser(destination)
     convert_books(source, '.epub', '.mobi')
@@ -204,6 +210,9 @@ def ocr(engine, file_name, language, output_dir):
 
 
 def split_pdf(src, dst=None):
+    if not src:
+        print('Enter file to convert')
+        sys.exit(0)
     if not dst:
         dst = src
 
@@ -364,3 +373,52 @@ def ipa_install(ipa):
     isign.resign(ipa, output_path=ipa)
     cmd = 'ideviceinstaller -i {}'.format(ipa)
     run_shell_command(cmd)
+
+
+def rate_movies(directory, sort):
+    if not directory:
+        directory = os.getcwd()
+    logger.info('Fecting ratings for videos in {}'.format(directory))
+    columns = ['TITLE', 'YEAR', 'GENRE', 'IMDB', 'RT', 'MC']
+    table = PrettyTable(columns)
+    for file in file_list(directory):
+        title = get_title(file)
+        if not title:
+            continue
+        data = movie_info(title)
+        if not data:
+            continue
+        r = data['Ratings']
+        table.add_row((
+            data['Title'], data['Year'], data['Genre'], r[0]['Value'], r[1]['Value'], r[2]['Value'],
+        ))
+    if not sort:
+        sort = 'TITLE'
+    sort = sort.upper()
+    sort_key = columns.index(sort.upper()) + 1
+    print(table.get_string(sort_key=operator.itemgetter(sort_key, 0), sortby=sort))
+
+
+def validate_aadhaar(number):
+    if not number or len(number) != 12:
+        print('Enter 12 digit AADHAR numner')
+        sys.exit()
+
+    chksum, aadhaar = number[0], number[1:]
+    if str(checksum(aadhaar)) == chksum:
+        print('Valid AADHAR number')
+    else:
+        print('Invalid AADHAR number')
+    print(chksum, aadhaar, number, checksum(aadhaar))
+
+
+def procfile(file):
+    data = open(file).readlines()
+    commands = [i.split(':')[-1].strip() for i in data]
+    try:
+        with multiprocessing.Pool(len(commands)) as pool:
+            pool.map(execute_shell_command, commands)
+    except KeyboardInterrupt:
+        pool.close()
+        pool.terminate()
+        run_shell_command('pkill -f celery')

@@ -1,9 +1,9 @@
 import contextlib
-import fcntl
 import glob
 import logging
 import os
 import pathlib
+import sys
 import shlex
 import shutil
 import socket
@@ -11,7 +11,13 @@ import struct
 import subprocess
 from enum import Enum
 from os.path import expanduser
+from urllib.parse import quote_plus
+import pickle
+import collections
 
+import fcntl
+import requests
+import guessit
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +67,7 @@ def convert_books(directory, source='.epub', target='.mobi'):
         file_path, ext = os.path.splitext(filename)
         target_file = file_path + target
         command = ['ebook-convert', filename, target_file]
+        logger.info(command)
         subprocess.check_output(command)
         shutil.move(filename, "/tmp/")
 
@@ -107,6 +114,12 @@ def run_shell_command(cmd):
     return out.decode('utf-8')
 
 
+def execute_shell_command(cmd):
+    logger.info(cmd)
+    cmd = shlex.split(cmd)
+    subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stdout)
+
+
 def get_active_hosts(network):
     cmd = 'nmap -sP {}'.format(network)
     out = run_shell_command(cmd)
@@ -122,11 +135,15 @@ def file_list(directory):
             yield os.path.join(root_dir, fname)
 
 
-def get_cache_file(name):
-    file_path = '~/.cache/{}'.format(name)
+def get_cache_file(filename):
+    file_path = '~/.cache/{}'.format(filename)
     file_path = expanduser(file_path)
     if not os.path.exists(file_path):
-        pathlib.Path(file_path).touch()
+        if file_path.endswith('.pkl'):
+            with open(file_path, 'wb') as fh:
+                pickle.dump(collections.defaultdict(dict), fh)
+        else:
+            pathlib.Path(file_path).touch()
     return file_path
 
 
@@ -147,3 +164,96 @@ def relocate_file(file):
     target_dir = TARGET_DIRS[f_type]
     logger.info('Relocating {} -> {}'.format(file, target_dir))
     shutil.move(file, os.path.join(target_dir))
+
+
+def movie_info(title):
+    cache = get_cache()
+    try:
+        data = cache['omdbapi'][title]
+    except KeyError:
+        url = 'http://www.omdbapi.com/?t={}'.format(quote_plus(title))
+        logger.info('Fetching {}'.format(url))
+        response = requests.get(url)
+        data = response.json()
+        if 'Error' in data:
+            data = None
+        cache['omdbapi'][title] = data
+        update_cache(cache)
+
+    return data
+
+
+def rt_rating(movie):
+    return 5
+
+
+verhoeff_table_d = (
+    (0,1,2,3,4,5,6,7,8,9),
+    (1,2,3,4,0,6,7,8,9,5),
+    (2,3,4,0,1,7,8,9,5,6),
+    (3,4,0,1,2,8,9,5,6,7),
+    (4,0,1,2,3,9,5,6,7,8),
+    (5,9,8,7,6,0,4,3,2,1),
+    (6,5,9,8,7,1,0,4,3,2),
+    (7,6,5,9,8,2,1,0,4,3),
+    (8,7,6,5,9,3,2,1,0,4),
+    (9,8,7,6,5,4,3,2,1,0))
+verhoeff_table_p = (
+    (0,1,2,3,4,5,6,7,8,9),
+    (1,5,7,6,2,8,3,0,9,4),
+    (5,8,0,3,7,9,6,1,4,2),
+    (8,9,1,6,0,4,3,5,2,7),
+    (9,4,5,3,1,2,6,8,7,0),
+    (4,2,8,6,5,7,3,9,0,1),
+    (2,7,9,3,8,0,6,4,1,5),
+    (7,0,4,6,9,1,3,2,5,8))
+
+
+verhoeff_table_inv = (0,4,3,2,1,5,6,7,8,9)
+
+
+def calcsum(number):
+    """For a given number returns a Verhoeff checksum digit"""
+    c = 0
+    for i, item in enumerate(reversed(str(number))):
+        c = verhoeff_table_d[c][verhoeff_table_p[(i+1)%8][int(item)]]
+    return verhoeff_table_inv[c]
+
+
+def checksum(number):
+    """For a given number generates a Verhoeff digit and
+    returns number + digit"""
+    c = 0
+    for i, item in enumerate(reversed(str(number))):
+        c = verhoeff_table_d[c][verhoeff_table_p[i % 8][int(item)]]
+    return c
+
+
+def generateVerhoeff(number):
+    """For a given number returns number + Verhoeff checksum digit"""
+    return "%s%s" % (number, calcsum(number))
+
+
+def validateVerhoeff(number):
+    """Validate Verhoeff checksummed number (checksum is last digit)"""
+    return checksum(number) == 0
+
+
+def get_cache():
+    cache_file = get_cache_file('pyflash.pkl')
+    with open(cache_file, 'rb') as fh:
+        return pickle.load(fh)
+
+
+def update_cache(cache):
+    cache_file = get_cache_file('pyflash.pkl')
+    with open(cache_file, 'wb') as fh:
+        return pickle.dump(cache, fh)
+
+
+def get_title(file):
+    movie = guessit.guessit(file)
+    container = movie.get('container', None)
+    if container and container in {'srt'}:
+        return
+    return movie['title']
