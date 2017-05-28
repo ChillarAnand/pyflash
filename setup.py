@@ -1,5 +1,8 @@
 from setuptools import find_packages, setup
 
+import pyflash
+
+
 dependencies = open('requirements.txt').read().splitlines()
 
 description = 'Get flash like superpowers by automating everyday tasks!'
@@ -9,7 +12,7 @@ with open('README.rst') as fh:
 
 setup(
     name='pyflash',
-    version='0.2.0',
+    version=pyflash.__version__,
     url='https://github.com/chillaranand/pyflash',
     license='BSD',
     author='Chillar Anand',
