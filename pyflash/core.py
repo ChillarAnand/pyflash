@@ -21,15 +21,15 @@ import pypandoc
 import requests
 from dateutil import rrule
 from prettytable import PrettyTable
+from isign import isign
+
 try:
     from isign import isign
 except:
     isign = None
 from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
-from .utils import get_active_hosts, get_ip, ping, run_shell_command, ebook_meta_data, matched_files, \
-    convert_books, get_cache_file, file_list, relocate_file, checksum, execute_shell_command, \
-    get_title, movie_info
+from pyflash import utils as u
 
 
 FNULL = open(os.devnull, 'w')
@@ -53,10 +53,10 @@ def organize_books(directory=None):
     logger.info('Organizing books in {}'.format(directory))
 
     patterns = ['*.epub', '*.mobi', '*.pdf']
-    files = matched_files(patterns, directory)
+    files = u.matched_files(patterns, directory)
     for file_name in files:
         logger.info(file_name)
-        meta_data = ebook_meta_data(file_name)
+        meta_data = u.ebook_meta_data(file_name)
         title = meta_data.get('Title', '')
         if not title or title == 'Unknown':
             continue
@@ -74,47 +74,15 @@ def send_to_kindle(source, destination):
     logger.info('Search for books in {}'.format(source))
     source = expanduser(source)
     destination = expanduser(destination)
-    convert_books(source, '.epub', '.mobi')
+    u.convert_books(source, '.epub', '.mobi')
     patterns = ['*.azw3', '*.mobi', '*.pdf']
-    files = matched_files(patterns, source)
+    files = u.matched_files(patterns, source)
     for filename in files:
         logger.info('Syncing {}'.format(filename))
         try:
             shutil.move(filename, destination)
         except shutil.Error as e:
             logger.error(e)
-
-
-def fix_imports(index, source):
-    scope = importmagic.Scope.from_source(source)
-    unresolved, unreferenced = scope.find_unresolved_and_unreferenced_symbols()
-    source = importmagic.update_imports(
-        source, index, unresolved, unreferenced
-    )
-    return source
-
-
-def imp_mgc_fixup(project_root):
-    index = importmagic.SymbolIndex()
-    try:
-        with open('index.json') as fd:
-            index = importmagic.SymbolIndex.deserialize(fd)
-    except:
-        index.build_index(sys.path)
-        with open('index.json', 'w') as fd:
-            index.serialize(fd)
-
-    files = matched_files(['*.py'], root=project_root)
-    for f in files:
-        with open(f, 'w+') as fh:
-            py_source = fh.read()
-            py_source = fix_imports(index, py_source)
-            fh.write(py_source)
-
-
-def pyformat(project_root):
-    cmd = "find . -name '*.py' | xargs autopep8 -i"
-    subprocess.check_output(shlex.split(cmd), shell=True)
 
 
 def download_imd_data(from_date, to_date, state):
@@ -182,7 +150,7 @@ def organize_photos(directory=None):
         directory = os.getcwd()
     logger.info('Organizing photos in {}'.format(directory))
     cmd = "exiftool -r '-FileName<CreateDate' -d '%Y-%m-%d_%H_%M_%S%%-c.%%le' {}".format(directory)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
 
 
 def ocropus(file_name, language, output_dir):
@@ -193,12 +161,12 @@ def ocropus(file_name, language, output_dir):
     file_name = os.path.abspath(file_name)
 
     cmd = '{} ocropus-nlbin {} -o {} -n '.format(py, file_name, output_dir)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
     cmd = '{} ocropus-gpageseg {}/????.bin.png -n '.format(py, output_dir)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
     model = 'models/{}.pyrnn.gz'.format(language)
     cmd = '{} ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(py, model, output_dir)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
 
 
 engines = {'ocropus': ocropus}
@@ -260,46 +228,64 @@ def download_book():
 def organize_downloads(directory):
     if not directory:
         directory = os.getcwd()
-    for filename in file_list(directory):
-        relocate_file(filename)
+    for filename in u.file_list(directory):
+        u.relocate_file(filename)
+
+
+def pyformat(project_root):
+    cmd = "find . -name '*.py' | xargs autopep8 -i"
+    subprocess.check_output(shlex.split(cmd), shell=True)
 
 
 def _fix_pep8(project_root):
     logger = logging.getLogger(__name__)
     logger.info('Fixing PEP8 issues')
     cmd = 'autopep8 --recursive --in-place {}'.format(project_root)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
 
 
-def importmagic_fixup(index, code):
-    scope = importmagic.Scope.from_source(code)
+def fix_imports_in_code(index, source):
+    scope = importmagic.Scope.from_source(source)
     unresolved, unreferenced = scope.find_unresolved_and_unreferenced_symbols()
-    code = importmagic.update_imports(code, index, unresolved, unreferenced)
-    return code
+    # start_line, end_line, import_block = importmagic.get_update(source, index, unresolved, unreferenced)
+    source = importmagic.update_imports(
+        source, index, unresolved, unreferenced
+    )
+    return source
 
 
-def _fix_imports(project_root):
+def fix_imports(project_root):
+    if not project_root:
+        project_root = os.getcwd()
     index = importmagic.SymbolIndex()
-    name = project_root.split('/')[-1]
-    index.get_or_create_index(name=name, paths=[project_root] + sys.path)
-    importmagic.Imports(index=index, source=None, root_dir=project_root)
+    try:
+        with open('.index.json') as fd:
+            index = importmagic.SymbolIndex.deserialize(fd)
+        print('Index loaded')
+    except:
+        print('Building index...')
+        index.build_index(sys.path + [project_root])
+        with open('.index.json', 'w') as fd:
+            index.serialize(fd)
 
-    files = matched_files(['*.py'], project_root)
-    for filename in files:
-        with open(filename, 'r') as fh:
-            code = fh.read()
-        if not code:
-            continue
-        code = importmagic_fixup(index, code)
-        with open(filename, 'w') as fh:
-            fh.write(code)
+    # files = u.matched_files(['*.py'], root_dir=project_root)
+    for root, dirs, files in os.walk(project_root):
+        for file in files:
+            if not file.endswith('.py'):
+                continue
+            with open(file) as fh:
+                py_source = fh.read()
+            py_source = fix_imports_in_code(index, py_source)
+
+            with open(file, 'w') as fh:
+                fh.write(py_source)
 
 
 def fix_build(directory):
     if not directory:
         directory = os.getcwd()
     _fix_pep8(directory)
-    _fix_imports(directory)
+    fix_imports(directory)
 
 
 def download_subtitles(directory):
@@ -307,7 +293,7 @@ def download_subtitles(directory):
         directory = os.getcwd()
     logger.info('Downloading subtitles for videos in {}'.format(directory))
     backend = 'dogpile.cache.dbm'
-    cache_file = get_cache_file('subliminal.cache')
+    cache_file = u.get_cache_file('subliminal.cache')
     region.configure(backend, arguments={'filename': cache_file})
     videos = scan_videos(directory)
     subtitles = download_best_subtitles(videos, {babelfish.Language('eng')})
@@ -319,13 +305,14 @@ def adb_connect(interface):
     if not interface:
         interface = 'wlo1'
     logger.info('Scanning "{interface}" for open ports...')
-    ip = get_ip(interface)
+    ip = u.get_ip(interface)
     network = '.'.join(ip.split('.')[:-1] + ['0']) + '/24'
-    hosts = get_active_hosts(network)
+    hosts = u.get_active_hosts(network)
+    print(hosts)
     for host in hosts():
-        up = ping(host, port=5555)
+        up = u.ping(host, port=5555)
         if up:
-            out = run_shell_command('adb connect {}'.format(host))
+            out = u.run_shell_command('adb connect {}'.format(host))
             print(out)
 
 
@@ -372,7 +359,7 @@ def ipa_install(ipa):
     logger.info('Resigning ipa: {}'.format(ipa))
     isign.resign(ipa, output_path=ipa)
     cmd = 'ideviceinstaller -i {}'.format(ipa)
-    run_shell_command(cmd)
+    u.run_shell_command(cmd)
 
 
 def rate_movies(directory, sort):
@@ -381,11 +368,11 @@ def rate_movies(directory, sort):
     logger.info('Fecting ratings for videos in {}'.format(directory))
     columns = ['TITLE', 'YEAR', 'GENRE', 'IMDB', 'RT', 'MC']
     table = PrettyTable(columns)
-    for file in file_list(directory):
-        title = get_title(file)
+    for file in u.file_list(directory):
+        title = u.get_title(file)
         if not title:
             continue
-        data = movie_info(title)
+        data = u.movie_info(title)
         if not data:
             continue
         r = data['Ratings']
@@ -405,20 +392,20 @@ def validate_aadhaar(number):
         sys.exit()
 
     chksum, aadhaar = number[0], number[1:]
-    if str(checksum(aadhaar)) == chksum:
+    if str(u.checksum(aadhaar)) == chksum:
         print('Valid AADHAR number')
     else:
         print('Invalid AADHAR number')
-    print(chksum, aadhaar, number, checksum(aadhaar))
+    print(chksum, aadhaar, number, u.checksum(aadhaar))
 
 
 def procfile(file):
     data = open(file).readlines()
-    commands = [i.split(':')[-1].strip() for i in data]
+    commands = [i.split(':', 1)[-1].strip() for i in data]
     try:
         with multiprocessing.Pool(len(commands)) as pool:
-            pool.map(execute_shell_command, commands)
+            pool.map(u.execute_shell_command, commands)
     except KeyboardInterrupt:
         pool.close()
         pool.terminate()
-        run_shell_command('pkill -f celery')
+        u.run_shell_command('pkill -f celery')

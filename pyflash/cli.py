@@ -51,7 +51,8 @@ def send_to_kindle(source, destination):
 
 
 @cli.command()
-def fix_imports(directory=None):
+@click.option('--directory', '-d', default=None)
+def fix_imports(directory):
     """
     Fix imports in a python project.
     """
