@@ -21,7 +21,6 @@ import pypandoc
 import requests
 from dateutil import rrule
 from prettytable import PrettyTable
-from isign import isign
 
 try:
     from isign import isign
