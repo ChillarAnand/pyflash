@@ -1,22 +1,6 @@
 import click
 
-from .core import adb_connect as _adb_connect
-from .core import download_book as _download_book
-from .core import download_imd_data as _download_imd_data
-from .core import download_subtitles as _download_subtitles
-from .core import fix_imports as _fix_imports
-from .core import fix_build as _fix_build
-from .core import ipa_install as _ipa_install
-from .core import organize_downloads as _organize_downloads
-from .core import ocr as _ocr
-from .core import organize_books as _organize_books
-from .core import organize_photos as _organize_photos
-from .core import split_pdf as _split_pdf
-from .core import send_to_kindle as _send_to_kindle
-from .core import rate_movies as _rate_movies
-from .core import rent_receipts as _rent_receipts
-from .core import validate_aadhaar as _validate_aadhaar
-from .core import procfile as _procfile
+from . import core
 
 
 try:
@@ -35,7 +19,7 @@ def adb_connect(interface=None):
     """
     Scan network and connect to adb via network.
     """
-    _adb_connect(interface)
+    core.adb_connect(interface)
 
 
 @cli.command()
@@ -47,7 +31,7 @@ def send_to_kindle(source, destination):
     """
     Send books to kindle via Dropbox/IFTTT.
     """
-    _send_to_kindle(source, destination)
+    core.send_to_kindle(source, destination)
 
 
 @cli.command()
@@ -56,7 +40,7 @@ def fix_imports(directory):
     """
     Fix imports in a python project.
     """
-    _fix_imports(directory)
+    core.fix_imports(directory)
 
 
 @cli.command()
@@ -64,7 +48,7 @@ def fix_build(directory=None):
     """
     Fix a failing CI build.
     """
-    _fix_build(directory)
+    core.fix_build(directory)
 
 
 @cli.command()
@@ -75,7 +59,7 @@ def download_imd_data(from_date, to_date, state):
     """
     Download IMD data for given range.
     """
-    _download_imd_data(from_date, to_date, state)
+    core.download_imd_data(from_date, to_date, state)
 
 
 @cli.command()
@@ -84,7 +68,7 @@ def ipa_install(ipa):
     """
     Resign & install iOS apps.
     """
-    _ipa_install(ipa)
+    core.ipa_install(ipa)
 
 
 @cli.command()
@@ -96,7 +80,7 @@ def ocr(engine, file_name, language, output_dir):
     """
     Run given OCR engine on given image.
     """
-    _ocr(engine, file_name, language, output_dir)
+    core.ocr(engine, file_name, language, output_dir)
 
 
 @cli.command()
@@ -106,7 +90,7 @@ def split_pdf(source, destination):
     """
     Split pdf horizontally/vertically.
     """
-    _split_pdf(source, destination)
+    core.split_pdf(source, destination)
 
 
 @cli.command()
@@ -115,7 +99,7 @@ def download_book(book):
     """
     Search and download book by name
     """
-    _download_book(book)
+    core.download_book(book)
 
 
 @cli.command()
@@ -124,7 +108,7 @@ def organize_books(directory):
     """
     Organize books in a specified directory.
     """
-    _organize_books(directory)
+    core.organize_books(directory)
 
 
 @cli.command()
@@ -132,7 +116,7 @@ def organize_photos(directory=None):
     """
     Organize photos by date.
     """
-    _organize_photos(directory)
+    core.organize_photos(directory)
 
 
 @cli.command()
@@ -140,7 +124,7 @@ def organize_downloads(directory=None):
     """
     Organize downloaded files.
     """
-    _organize_downloads(directory)
+    core.organize_downloads(directory)
 
 
 @cli.command()
@@ -148,7 +132,7 @@ def download_subtitles(directory=None):
     """
     Download subtitles for videos in a directory.
     """
-    _download_subtitles(directory)
+    core.download_subtitles(directory)
 
 
 @cli.command()
@@ -158,7 +142,7 @@ def rate_movies(sort, directory=None):
     Show IMDb/RT ratings for movies and series.
     """
     print(sort)
-    _rate_movies(directory, sort)
+    core.rate_movies(directory, sort)
 
 
 @cli.command()
@@ -172,7 +156,7 @@ def rent_receipts():
     address = input('Address [Ex: #26, Gandhi Road, Bangalore]: ')
     year = input('Year [Ex: 2016-17]: ')
     year = int(year[:4])
-    _rent_receipts(name, amount, owner_name, address, year)
+    core.rent_receipts(name, amount, owner_name, address, year)
 
 
 @cli.command()
@@ -181,7 +165,7 @@ def validate_aadhaar(number):
     """
     Check if given AADHAAR number is valid or not.
     """
-    _validate_aadhaar(number)
+    core.validate_aadhaar(number)
 
 
 @cli.command()
@@ -190,4 +174,12 @@ def procfile(file):
     """
     Start processes in Procfile
     """
-    _procfile(file)
+    core.procfile(file)
+
+
+@cli.command()
+def nsedb():
+    """
+    Create/Sync NSE stocks OHLC data.
+    """
+    core.nsedb()
