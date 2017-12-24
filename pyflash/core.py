@@ -14,21 +14,22 @@ import multiprocessing
 import operator
 from os.path import abspath, dirname, expanduser, join
 
-import babelfish
-import importmagic
-import PyPDF2
-import pypandoc
-import requests
-from dateutil import rrule
-from prettytable import PrettyTable
-
 try:
+    import babelfish
+    import importmagic
+    import PyPDF2
+    import pypandoc
+    import requests
+    from dateutil import rrule
+    from prettytable import PrettyTable
     from isign import isign
+    from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 except:
     isign = None
-from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
 
-from pyflash import utils as u
+
+from . import utils as u
+from . import utils
 
 
 FNULL = open(os.devnull, 'w')
@@ -153,25 +154,24 @@ def organize_photos(directory=None):
 
 
 def ocropus(file_name, language, output_dir):
+    file_name = os.path.abspath(file_name)
     if not output_dir:
         output_dir = os.getcwd()
+
     py = 'python2'
+    ocropus_root = '/home/chillaranand/projects/ocr/ocropy'
+    model = '{}/models/{}.pyrnn.gz'.format(ocropus_root, language)
 
-    file_name = os.path.abspath(file_name)
-
-    cmd = '{} ocropus-nlbin {} -o {} -n '.format(py, file_name, output_dir)
+    cmd = '{} {}/ocropus-nlbin {} -o {} -n '.format(py, ocropus_root, file_name, output_dir)
     u.run_shell_command(cmd)
-    cmd = '{} ocropus-gpageseg {}/????.bin.png -n '.format(py, output_dir)
+    cmd = '{} {}/ocropus-gpageseg {}/????.bin.png -n '.format(py, ocropus_root, output_dir)
     u.run_shell_command(cmd)
-    model = 'models/{}.pyrnn.gz'.format(language)
-    cmd = '{} ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(py, model, output_dir)
+    cmd = '{} {}/ocropus-rpred -Q 4 -m {} {}/????.bin.png -n'.format(py, ocropus_root, model, output_dir)
     u.run_shell_command(cmd)
-
-
-engines = {'ocropus': ocropus}
 
 
 def ocr(engine, file_name, language, output_dir):
+    engines = {'ocropus': ocropus}
     engine = engines[engine]
     engine(file_name, language, output_dir)
 

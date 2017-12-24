@@ -257,3 +257,9 @@ def get_title(file):
     if container and container in {'srt'}:
         return
     return movie['title']
+
+
+def ensure_dir(directory):
+    directory = os.path.expanduser(directory)
+    if not os.path.exists(directory):
+        os.mkdir(directory)
