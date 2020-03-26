@@ -183,3 +183,11 @@ def nsedb():
     Create/Sync NSE stocks OHLC data.
     """
     core.nsedb()
+
+
+@cli.command()
+def otp():
+    """
+    Show OTP
+    """
+    core.otp()

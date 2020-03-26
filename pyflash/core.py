@@ -1,5 +1,6 @@
 import ast
 import copy
+import configparser
 import datetime as dt
 import logging
 import math
@@ -13,6 +14,9 @@ import tempfile
 import multiprocessing
 import operator
 from os.path import abspath, dirname, expanduser, join
+
+import pyotp
+
 
 try:
     import babelfish
@@ -55,8 +59,12 @@ def organize_books(directory=None):
     patterns = ['*.epub', '*.mobi', '*.pdf']
     files = u.matched_files(patterns, directory)
     for file_name in files:
-        logger.info(file_name)
-        meta_data = u.ebook_meta_data(file_name)
+        # logger.info(file_name)
+        try:
+            meta_data = u.ebook_meta_data(file_name)
+        except Exception as e:
+            logger.error(e)
+            continue
         title = meta_data.get('Title', '')
         if not title or title == 'Unknown':
             continue
@@ -408,3 +416,16 @@ def procfile(file):
         pool.close()
         pool.terminate()
         u.run_shell_command('pkill -f celery')
+
+
+def otp():
+    config = configparser.ConfigParser()
+    config.read(os.path.expanduser('~/.pyflash'))
+    for item in config['otp']:
+        secret = config['otp'][item]
+        try:
+            otp = pyotp.TOTP(secret).now()
+        except:
+            continue
+        row = '{}: {}'.format(item, otp)
+        print(row)
