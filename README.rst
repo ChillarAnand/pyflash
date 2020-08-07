@@ -18,6 +18,16 @@ flash needs several third party packages depending on the command being used. Pa
 .. _ocropy: https://github.com/tmbdev/ocropy
 
 
+For otp command to work, we have to setup a `~/.pyflash.ini` file in the following format.
+
+
+.. code-block:: shell
+
+    [otp]
+    gmail = secret_code_for_gmail
+    twitter = secret_code_for_twitter
+
+
 Usage
 =========
 
@@ -36,10 +46,16 @@ Usage
       fix_build           Fix a failing CI build.
       fix_imports         Fix imports in a python project.
       ipa_install         Resign & install iOS apps.
+      nsedb               Create/Sync NSE stocks OHLC data.
       ocr                 Run given OCR engine on given image.
       organize_books      Organize books in a specified directory.
       organize_downloads  Organize downloaded files.
       organize_photos     Organize photos by date.
-      rent_receipts       Generate monthly rent receipts for a given financial year.
+      otp                 Show OTP
+      pg_stats            Show stats for postgres database.
+      procfile            Start processes in Procfile
+      rate_movies         Show IMDb/RT ratings for movies and series.
+      rent_receipts       Generate monthly rent receipts for a given...
       send_to_kindle      Send books to kindle via Dropbox/IFTTT.
       split_pdf           Split pdf horizontally/vertically.
+      validate_aadhaar    Check if given AADHAAR number is valid.
