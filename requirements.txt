@@ -7,3 +7,4 @@ requests
 subliminal==2.0.5
 prettytable==0.7.2
 pyotp==2.3.0
+psycopg2-binary==2.8.5

@@ -14,10 +14,12 @@ from os.path import expanduser
 # from urllib.parse import quote_plus
 import pickle
 import collections
+import operator
 
 import fcntl
 import requests
 import guessit
+import psycopg2
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +138,9 @@ def file_list(directory):
 
 
 def get_cache_file(filename):
-    file_path = '~/.cache/{}'.format(filename)
+    cache_dir = '~/.cache'
+    ensure_dir(cache_dir)
+    file_path = '{}/{}'.format(cache_dir, filename)
     file_path = expanduser(file_path)
     if not os.path.exists(file_path):
         if file_path.endswith('.pkl'):
@@ -263,3 +267,54 @@ def ensure_dir(directory):
     directory = os.path.expanduser(directory)
     if not os.path.exists(directory):
         os.mkdir(directory)
+
+
+class PGStats:
+    def __init__(self, uri=None):
+        self.uri = uri
+        self.conn = psycopg2.connect(uri)
+        self.conn.set_session(readonly=True, autocommit=True)
+        self.cursor = self.conn.cursor()
+
+    @property
+    def tables(self):
+        query = '''
+        SELECT table_name
+        FROM information_schema.tables
+               WHERE table_schema = 'public'
+        '''
+        self.cursor.execute(query)
+        for table in self.cursor.fetchall():
+            yield table[0]
+
+    def run(self, query):
+        #print(query)
+        result = self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    def table_stats(self, table, column, duration):
+        stats = {}
+        query = f'''
+        select count(*)
+        from {table}
+        where {column}::date > (now() - INTERVAL '{duration} days')::date
+        '''
+        result = self.run(query)
+        return result[0][0]
+
+    def db_stats(self, column=None, duration=1, include_emtpy=False):
+        stats = {}
+        for table in self.tables:
+            # print(table)
+            try:
+                count = self.table_stats(table, column, duration)
+                if not count and include_empty:
+                    continue
+                stats[table] = count
+
+            except Exception as e:
+                #print(e)
+                pass
+
+        sorted_stats = {k: v for k, v in sorted(stats.items(), key=operator.itemgetter(1), reverse=True)}
+        return sorted_stats

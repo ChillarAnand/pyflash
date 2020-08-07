@@ -191,3 +191,14 @@ def otp():
     Show OTP
     """
     core.otp()
+
+
+@cli.command()
+@click.option('--column', '-c')
+@click.option('--uri', '-u')
+@click.option('--duration', '-d', default=1)
+def pg_stats(uri,column, duration):
+    """
+    Show stats for postgres database.
+    """
+    core.pg_stats(uri, column, duration)

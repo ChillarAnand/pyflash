@@ -26,8 +26,8 @@ try:
     import requests
     from dateutil import rrule
     from prettytable import PrettyTable
-    from isign import isign
     from subliminal import download_best_subtitles, region, save_subtitles, scan_videos
+    from isign import isign
 except:
     isign = None
 
@@ -299,6 +299,13 @@ def download_subtitles(directory):
     if not directory:
         directory = os.getcwd()
     logger.info('Downloading subtitles for videos in {}'.format(directory))
+
+    for dir_name, subdir, files in os.walk(directory):
+        print(dir_name, subdir)
+        for fname in files:
+            print(fname)
+    # return
+
     backend = 'dogpile.cache.dbm'
     cache_file = u.get_cache_file('subliminal.cache')
     region.configure(backend, arguments={'filename': cache_file})
@@ -420,7 +427,7 @@ def procfile(file):
 
 def otp():
     config = configparser.ConfigParser()
-    config.read(os.path.expanduser('~/.pyflash'))
+    config.read(os.path.expanduser('~/.pyflash.ini'))
     for item in config['otp']:
         secret = config['otp'][item]
         try:
@@ -429,3 +436,11 @@ def otp():
             continue
         row = '{}: {}'.format(item, otp)
         print(row)
+
+
+def pg_stats(uri, column, duration):
+    print(uri, column, duration)
+    pg_stats = utils.PGStats(uri=uri)
+    report = pg_stats.db_stats(column=column, duration=duration, include_emtpy=False)
+    for k, v in report.items():
+        print(k, v)
