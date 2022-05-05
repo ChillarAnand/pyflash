@@ -488,7 +488,7 @@ def python_version_readiness(python, number):
             except:
                 pass
 
-        packages[index]['is_ready'] = is_ready
+        packages[index - 1]['is_ready'] = is_ready
         with open(log_file_name, 'w') as fh:
             fh.write(json.dumps(packages, indent=4))
 
