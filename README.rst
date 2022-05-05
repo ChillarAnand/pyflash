@@ -97,12 +97,6 @@ flash needs several third party packages depending on the command being used. Pa
 .. _ocropy: https://github.com/tmbdev/ocropy
 
 
-.. code-block:: shell
-
-    [otp]
-    gmail = secret_code_for_gmail
-    twitter = secret_code_for_twitter
-
 
 Help
 ======
