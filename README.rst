@@ -68,14 +68,33 @@ This command is useful to detect the python version readiness when compared to t
       --
 
 
+otp
+----
+
+This command is used to generate OTP for 2 factor authentication.
+
+Setup a file called `~/.pyflash.ini` and then run `otp` command.
+
+
+.. code-block:: shell
+
+    $ cat ~/.pyflash.ini
+    [otp]
+    gmail = secret_key_of_gmail
+    vault = secret_key_of_vault
+
+    $ python -m pyflash otp
+    gmail: 282910
+    vault: 420529
+
+
+Note
+------
 
 flash needs several third party packages depending on the command being used. Packages which are available on PyPi will get installed as a requirements. sortphotos_, ocropy_ are not available on PyPi. You have to download them and add them to your python path.
 
 .. _sortphotos: https://github.com/andrewning/sortphotos
 .. _ocropy: https://github.com/tmbdev/ocropy
-
-
-For otp command to work, we have to setup a `~/.pyflash.ini` file in the following format.
 
 
 .. code-block:: shell
