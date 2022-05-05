@@ -18,8 +18,12 @@ import operator
 
 import fcntl
 import requests
-import guessit
-import psycopg2
+try:
+    import guessit
+    import psycopg2
+except:
+    pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +113,9 @@ def envar(var):
     return var
 
 
-def run_shell_command(cmd):
-    logger.info(cmd)
+def run_shell_command(cmd, verbose=False):
+    if verbose:
+        logger.info(cmd)
     cmd = shlex.split(cmd)
     out = subprocess.check_output(cmd)
     return out.decode('utf-8')

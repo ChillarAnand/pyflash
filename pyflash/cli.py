@@ -3,12 +3,6 @@ import click
 from . import core
 
 
-try:
-    from isign import isign
-except:
-    isign = None
-
-
 @click.group()
 def cli():
     pass
