@@ -323,3 +323,10 @@ class PGStats:
 
         sorted_stats = {k: v for k, v in sorted(stats.items(), key=operator.itemgetter(1), reverse=True)}
         return sorted_stats
+
+
+def get_top_pypi_packages(count):
+    url = 'https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.min.json'
+    response = requests.get(url)
+    data = response.json()
+    return data['rows']

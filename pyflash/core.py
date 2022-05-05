@@ -2,6 +2,7 @@ import ast
 import copy
 import configparser
 import datetime as dt
+import json
 import logging
 import math
 import calendar
@@ -425,13 +426,21 @@ def procfile(file):
         u.run_shell_command('pkill -f celery')
 
 
-def otp():
+def otp(account=None):
+    config_file = os.path.expanduser('~/.pyflash.ini')
+    if not os.path.exists(config_file):
+        print(f'Config file not found: {config_file}')
+        sys.exit(1)
+
     config = configparser.ConfigParser()
-    config.read(os.path.expanduser('~/.pyflash.ini'))
+    config.read(config_file)
+
     for item in config['otp']:
         secret = config['otp'][item]
         try:
             otp = pyotp.TOTP(secret).now()
+            if account == item:
+                return otp
         except:
             continue
         row = '{}: {}'.format(item, otp)
@@ -444,3 +453,43 @@ def pg_stats(uri, column, duration):
     report = pg_stats.db_stats(column=column, duration=duration, include_emtpy=False)
     for k, v in report.items():
         print(k, v)
+
+
+def python_version_readiness(python, number):
+    version = python.split('/')[-1]
+    log_file_name = f'pvr.{version}.log'
+    if not os.path.exists(log_file_name):
+        packages = u.get_top_pypi_packages(count=number)
+    else:
+        packages = json.loads(open(log_file_name).read())
+
+    packages = packages[:number]
+
+    count = len(packages)
+    for index, package in enumerate(packages, 1):
+        print(f'Status: - {index}/{count}')
+
+        name = package['project']
+        is_ready = package.get('is_ready')
+
+        if is_ready is not None:
+            print(f'{name} - {is_ready}')
+            continue
+
+        print(f'Checking {name}')
+        cmd = f'{python} -m pip install {name}'
+        try:
+            output = u.run_shell_command(cmd)
+            is_ready = True
+        except subprocess.CalledProcessError:
+            is_ready = False
+            try:
+                print(output)
+            except:
+                pass
+
+        packages[index]['is_ready'] = is_ready
+        with open(log_file_name, 'w') as fh:
+            fh.write(json.dumps(packages, indent=4))
+
+        print(f'{name} - {is_ready}')

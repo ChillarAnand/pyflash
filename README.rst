@@ -59,3 +59,50 @@ Usage
       send_to_kindle      Send books to kindle via Dropbox/IFTTT.
       split_pdf           Split pdf horizontally/vertically.
       validate_aadhaar    Check if given AADHAAR number is valid.
+
+
+
+Commands
+=========
+
+
+python-version-readiness
+--------------------------
+
+This command is useful to detect the python version readiness when compared to top 5000 most downloaded PyPI packages.
+
+.. code-block:: shell
+
+    # Command to download and install top 300 packages for the given python version and generate a log file
+    $ flash python-version-readiness --python /usr/local/bin/python3.10 --number 300
+
+
+    # Show top 10 lines of the log file
+    $ head -n 11 pvr.python3.10.log
+    [
+      {
+         "download_count": 267740673,
+         "project": "boto3",
+         "is_ready": true
+      },
+      {
+        "download_count": 203850147,
+        "project": "botocore",
+        "is_ready": true
+      },
+
+
+    # Show packages that are failed to install
+    $ grep false -C 1 pvr.python3.10.log
+        "project": "pyodbc",
+        "is_ready": false
+      },
+      --
+        "project": "tensorflow",
+        "is_ready": false
+      },
+      --
+        "project": "backports-zoneinfo",
+        "is_ready": false
+      },
+      --

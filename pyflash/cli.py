@@ -196,3 +196,13 @@ def pg_stats(uri,column, duration):
     Show stats for postgres database.
     """
     core.pg_stats(uri, column, duration)
+
+
+@cli.command()
+@click.option('--python', '-p')
+@click.option('--number', '-n', default=100)
+def python_version_readiness(python, number):
+    """
+    Show version readiness of top python packages.
+    """
+    core.python_version_readiness(python, number)
