@@ -28,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'flash = pyflash.cli:cli',
+            'pyflash = pyflash.cli:cli',
         ],
     },
     classifiers=[
