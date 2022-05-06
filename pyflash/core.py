@@ -463,11 +463,11 @@ def python_version_readiness(python, number):
     else:
         packages = json.loads(open(log_file_name).read())
 
-    packages = packages[:number]
+    for index, package in enumerate(packages):
+        if index == number:
+            break
 
-    count = len(packages)
-    for index, package in enumerate(packages, 1):
-        print(f'Status: - {index}/{count}')
+        print(f'Status: - {index + 1}/{number}')
 
         name = package['project']
         is_ready = package.get('is_ready')
