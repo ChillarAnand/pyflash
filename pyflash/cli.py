@@ -382,6 +382,25 @@ def _bench_summary(labels=None):
                     pass
             scores.append(score)
         click.echo(row_line(suite, scores))
+    click.echo(middle)
+
+    tps_row = []
+    for lb in labels:
+        vals = []
+        for suite in BENCH_SUITES:
+            txt = _latest_file(lb, suite, 'txt')
+            if not txt:
+                continue
+            try:
+                for line in txt.read_text().splitlines():
+                    m = re.search(r'Mean TPS\s*\│\s*([\d.]+)\s*tok/s', line)
+                    if m:
+                        vals.append(float(m.group(1)))
+                        break
+            except FileNotFoundError:
+                pass
+        tps_row.append(f'{sum(vals) / len(vals):.1f} tok/s' if vals else '—')
+    click.echo(row_line('Mean TPS', tps_row))
     click.echo(bottom)
 
 
